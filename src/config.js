@@ -1,0 +1,2 @@
+export const API_BASE_URL = 'http://localhost:3000';
+export const API_KEY = 'sk-a622UrDOIQkyYyoR9wGWMQnk8v105leyGtq8jyv2WBq0Am6n'; 
