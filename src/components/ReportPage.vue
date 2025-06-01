@@ -7,7 +7,7 @@
     <div class="report-actions-top">
       <button @click="adjustFontSize('increase')">字体增大</button>
       <button @click="adjustFontSize('decrease')">字体减小</button>
-      <button @click="toggleLineHeight">行间距切换</button>
+      <button @click="toggleLineHeight">行距切换</button>
       <button @click="toggleEyeCareMode">{{ eyeCareMode ? '关闭护眼' : '开启护眼' }}</button>
     </div>
 
@@ -58,9 +58,9 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { marked } from 'marked';
 
-const reportTitle = ref('');
-const reportHtml = ref(''); // This will hold the actual report content (plain text for now)
-const bookInfoForDisplay = ref(''); // To display book name and word count
+// const reportTitle = ref(''); // Removed as title is handled by Markdown content
+const reportHtml = ref('');
+// const bookInfoForDisplay = ref(''); // Removed as it was unused
 
 // UI states (can keep these for styling)
 const isLoadingReport = ref(true); // Will set to false once data is processed
@@ -75,15 +75,18 @@ const visualizations = ref([]);
 const route = useRoute();
 
 onMounted(() => {
+  if (window.innerWidth <= 600) {
+    currentFontSize.value = 13; // 移动端初始字号
+  } else {
+    currentFontSize.value = 16; // PC端初始字号
+  }
   isLoadingReport.value = true;
-  const reportId = route.params.reportId; // Get reportId from route params
-  const bookName = route.query.bookName || '未知书籍'; // Get bookName from route query
-
-  reportTitle.value = `《${bookName}》的解读报告`; // Set the report title
+  const reportId = route.params.reportId;
+  const bookName = route.query.bookName || '未知书籍';
 
   console.log('ReportPage loaded for reportId:', reportId, 'Book Name:', bookName);
 
-  const storedReportContent = localStorage.getItem(reportId);
+  const storedReportContent = localStorage.getItem(reportId); // CORRECT: Use reportId from route directly as the key
 
   if (storedReportContent) {
     try {
@@ -113,11 +116,11 @@ onMounted(() => {
     } catch (error) {
       console.error('Error parsing Markdown from localStorage:', error);
       reportHtml.value = '<p>无法解析报告内容，请检查存储的Markdown格式。</p>';
-      reportTitle.value = '报告加载失败';
+      // reportTitle.value = '报告加载失败'; // Removed
     }
   } else {
     reportHtml.value = '<p>未能从localStorage获取到报告内容。请返回重试。</p>';
-    reportTitle.value = '报告加载失败';
+    // reportTitle.value = '报告加载失败'; // Removed
     console.error('Report content not found in localStorage for reportId:', reportId);
   }
   isLoadingReport.value = false;
@@ -204,6 +207,7 @@ const shareReport = () => {
     transform: translateY(-50%);
     color: #007bff;
     text-decoration: none;
+    font-size: 0.85em;
 }
 
 
@@ -472,5 +476,86 @@ const shareReport = () => {
     font-style: italic;
     color: #777;
     margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+  .report-page {
+    max-width: 100vw;
+    padding: 8px;
+    border: none;
+    box-shadow: none;
+  }
+  .page-header {
+    padding-bottom: 4px;
+    min-height: 1.5em;
+  }
+  .report-actions-top {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .report-actions-top button {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 0.7em;
+    padding: 5px 0;
+    margin: 0;
+    box-sizing: border-box;
+    border-radius: 4px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 2px 0px #333;
+  }
+  .report-content-wrapper {
+    flex-direction: column !important;
+    gap: 8px;
+    padding: 0;
+  }
+  .table-of-contents {
+    flex: none;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+    padding-right: 0;
+    margin-bottom: 10px;
+  }
+  .table-of-contents h2 {
+    font-size: 1.1em;
+    padding-bottom: 2px;
+  }
+  .table-of-contents ul {
+    font-size: 1em;
+  }
+  .report-body {
+    padding: 0;
+    font-size: 1em;
+  }
+  .visualizations-sidebar {
+    flex: none;
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #ddd;
+    padding-left: 0;
+    margin-top: 10px;
+  }
+  .brand-watermark {
+    font-size: 0.9em;
+  }
+  .page-footer {
+    font-size: 0.85em;
+    padding-top: 8px;
+  }
+}
+
+@media (max-width: 350px) {
+  .report-actions-top button {
+    font-size: 0.6em;
+    height: 20px;
+    padding: 3px 0;
+  }
 }
 </style> 

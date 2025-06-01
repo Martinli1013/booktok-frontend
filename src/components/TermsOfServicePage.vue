@@ -131,4 +131,55 @@
   border-top: 2px solid #333;
   padding-top: 15px;
 }
+
+@media (max-width: 600px) {
+  .legal-page {
+    max-width: 100vw;
+    padding: 8px;
+    border-width: 1px;
+    box-shadow: none;
+    margin: 0;
+  }
+  .page-header {
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    min-height: 1.5em;
+  }
+  .page-header h1 {
+    font-size: 1.4em;
+    padding: 0;
+  }
+  .back-link {
+    font-size: 1em;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .content {
+    padding: 2px;
+    font-size: 1em;
+  }
+  .content h2 {
+    font-size: 1.1em;
+    margin-top: 0.7em;
+    margin-bottom: 0.3em;
+  }
+  .content h3 {
+    font-size: 1em;
+    margin-top: 0.7em;
+    margin-bottom: 0.3em;
+  }
+  .content p, .content ul {
+    margin-bottom: 0.7em;
+  }
+  .content ul {
+    padding-left: 16px;
+    font-size: 1em;
+  }
+  .page-footer {
+    font-size: 0.8em;
+    padding-top: 8px;
+    margin-top: 18px;
+  }
+}
 </style> 
