@@ -12,10 +12,10 @@ const routes = [
     component: InputPage,
   },
   {
-    path: '/report', // Removed :reportId from path
+    path: '/report/:reportId', // 假设报告通过ID访问
     name: 'ReportPage',
     component: ReportPage,
-    // props: true, // No longer needed as we use route.query in the component
+    props: true, // 将路由参数作为props传递给组件
   },
   {
     path: '/privacy-policy',
