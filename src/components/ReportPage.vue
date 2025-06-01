@@ -2,7 +2,6 @@
   <div class="report-page">
     <header class="page-header">
        <a href="/" class="back-link">&lt; 返回首页</a>
-      <!-- <h1>{{ reportTitle || '报告加载中...' }}</h1> Removed h1 from page header -->
     </header>
 
     <div class="report-actions-top">
@@ -77,23 +76,49 @@ const route = useRoute();
 
 onMounted(() => {
   isLoadingReport.value = true;
-  const query = route.query;
-  console.log('ReportPage loaded with query:', query);
+  const reportId = route.params.reportId; // Get reportId from route params
+  const bookName = route.query.bookName || '未知书籍'; // Get bookName from route query
 
-  if (query.content) {
-    reportTitle.value = query.title || '深度解读报告';
-    // Parse Markdown to HTML using marked
+  reportTitle.value = `《${bookName}》的解读报告`; // Set the report title
+
+  console.log('ReportPage loaded for reportId:', reportId, 'Book Name:', bookName);
+
+  const storedReportContent = localStorage.getItem(reportId);
+
+  if (storedReportContent) {
     try {
-      reportHtml.value = marked(query.content);
+      reportHtml.value = marked(storedReportContent);
+      //
+      // We will attempt to generate a simple ToC from h2 and h3 tags in the Markdown
+      // This is a basic implementation. For more complex scenarios, a more robust
+      // Markdown parser and ToC generator would be needed.
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = reportHtml.value;
+      const headings = tempDiv.querySelectorAll('h2, h3');
+      const tocItems = [];
+      headings.forEach((heading, index) => {
+        const id = `section-${index}`;
+        heading.id = id; // Add id to the heading itself for scrolling
+        tocItems.push({
+          id: id,
+          title: heading.textContent,
+          level: parseInt(heading.tagName.substring(1)) // h2 -> 2, h3 -> 3
+        });
+      });
+      tableOfContents.value = tocItems;
+      // Update reportHtml with the modified HTML that includes IDs for headings
+      reportHtml.value = tempDiv.innerHTML;
+
+
     } catch (error) {
-      console.error('Error parsing Markdown:', error);
-      reportHtml.value = '<p>无法解析报告内容，请检查Markdown格式。</p>';
+      console.error('Error parsing Markdown from localStorage:', error);
+      reportHtml.value = '<p>无法解析报告内容，请检查存储的Markdown格式。</p>';
+      reportTitle.value = '报告加载失败';
     }
-    bookInfoForDisplay.value = `书籍: ${query.book || '未知'}, 字数: ${query.wordCount || '未知'}`;
   } else {
+    reportHtml.value = '<p>未能从localStorage获取到报告内容。请返回重试。</p>';
     reportTitle.value = '报告加载失败';
-    reportHtml.value = '<p>未能获取到报告内容。请返回重试。</p>';
-    console.error('Report content not found in route query.');
+    console.error('Report content not found in localStorage for reportId:', reportId);
   }
   isLoadingReport.value = false;
 });
@@ -214,11 +239,17 @@ const shareReport = () => {
 }
 .table-of-contents h2 {
   margin-top: 0;
-  font-size: 1.2em;
+  margin-bottom: 10px;
+  font-size: 1.3em; 
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 5px;
+  text-align: left; /* Ensure H2 is left-aligned */
 }
 .table-of-contents ul {
   list-style: none;
   padding-left: 0;
+  margin: 0;
+  text-align: left; /* Ensure list items are left-aligned */
 }
 .table-of-contents li a {
   text-decoration: none;

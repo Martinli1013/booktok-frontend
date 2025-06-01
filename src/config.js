@@ -1,2 +1,2 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-export const API_KEY = import.meta.env.VITE_API_KEY || 'booktok-frontend-key'; // This key is for authenticating frontend to new-api 
+export const API_KEY = import.meta.env.VITE_API_KEY || 'booktok-frontend-key'; // This key is for authenticating frontend to new-api
