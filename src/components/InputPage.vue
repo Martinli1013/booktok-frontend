@@ -20,13 +20,18 @@
       </button>
 
       <div v-if="isLoading" class="loading-indicator">
-        <p>请耐心等候5-10分钟...</p>
+        <p>请耐心等候，预计需要5-10分钟...</p>
         <div class="pixel-loader"></div>
         <div class="fake-progress-bar-wrapper">
           <div class="fake-progress-bar">
-            <div class="fake-progress-bar-inner" :style="{ width: Math.floor(fakeProgress) + '%' }"></div>
+            <div class="fake-progress-bar-inner" :style="{ width: realProgress + '%' }"></div>
           </div>
-          <div class="fake-progress-text">已完成 {{ Math.floor(fakeProgress) }}%</div>
+          <div class="fake-progress-text">已完成 {{ realProgress }}%</div>
+        </div>
+        <!-- Streaming content preview -->
+        <div v-if="streamingReportContent" class="streaming-preview">
+          <h3>报告内容预览:</h3>
+          <pre class="streaming-text-display">{{ streamingReportContent }}</pre>
         </div>
       </div>
 
@@ -40,7 +45,7 @@
     <footer class="page-footer">
       <p>&copy; {{ new Date().getFullYear() }} Booktok. 保留所有权利。</p>
       <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.2</p>
+      <p class="version">版本 1.0.3</p>
     </footer>
   </div>
 </template>
@@ -59,45 +64,11 @@ const bookQueryInput = ref(null);
 // UI状态
 const isLoading = ref(false);
 const error = ref(null);
+const streamingReportContent = ref(''); // For displaying streamed content
+const realProgress = ref(0); // For true progress tracking
+const TARGET_CHAR_COUNT = 12000; // Updated target character count
 
-// fake loader 相关
-const fakeProgress = ref(0);
-let progressTimer = null;
-let fastFinishTimer = null;
-let fakeLoaderStartTime = 0;
-
-function startFakeLoader() {
-  fakeProgress.value = 0;
-  fakeLoaderStartTime = Date.now();
-  function step() {
-    // 计算剩余时间和剩余进度，动态调整递增幅度
-    let elapsed = (Date.now() - fakeLoaderStartTime) / 1000; // 秒
-    let remain = 600 - elapsed; // 剩余秒数
-    let remainPercent = 95 - fakeProgress.value;
-    let avgStep = remainPercent / (remain / 4); // 4秒一次
-    let inc = Math.max(0.1, avgStep * (0.7 + Math.random() * 0.6)); // 0.7~1.3倍
-    let delay = 1500 + Math.random() * 5500; // 1.5~7秒
-    fakeProgress.value = Math.min(fakeProgress.value + inc, 95);
-    if (fakeProgress.value < 95 && isLoading.value) {
-      progressTimer = setTimeout(step, delay);
-    }
-  }
-  step();
-}
-
-function fastFinishLoaderAndJump(callback) {
-  if (progressTimer) clearTimeout(progressTimer);
-  // 快速补齐到100%
-  function fastStep() {
-    if (fakeProgress.value < 100) {
-      fakeProgress.value = Math.min(fakeProgress.value + 2, 100);
-      fastFinishTimer = setTimeout(fastStep, 30);
-    } else {
-      callback(); // 进度条到100%立即跳转
-    }
-  }
-  fastStep();
-}
+let animationFrameId = null; // For managing progress animation
 
 // 提交报告请求的逻辑
 const handleSubmitReportRequest = async () => {
@@ -109,99 +80,144 @@ const handleSubmitReportRequest = async () => {
   }
   isLoading.value = true;
   error.value = null;
-  fakeProgress.value = 0;
-  if (progressTimer) clearTimeout(progressTimer);
-  if (fastFinishTimer) clearTimeout(fastFinishTimer);
-  startFakeLoader();
+  streamingReportContent.value = ''; 
+  realProgress.value = 0; 
+  if (animationFrameId) cancelAnimationFrame(animationFrameId); // Cancel any previous animation
 
   console.log(`[InputPage] handleSubmitReportRequest: Attempting to generate report for book: "${bookQuery.value}"`);
 
   try {
     console.log('[InputPage] handleSubmitReportRequest: Calling apiService.generateReport with payload:', { bookQuery: bookQuery.value });
     const response = await apiService.generateReport({ bookQuery: bookQuery.value });
-    console.log('[InputPage] handleSubmitReportRequest: Received response from apiService.generateReport:', response);
+    console.log('[InputPage] handleSubmitReportRequest: Received response from apiService.generateReport (should be a Response object):', response);
 
-    if (response && response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message && response.data.choices[0].message.content) {
-      const reportContent = response.data.choices[0].message.content;
-      const reportId = `report-${Date.now()}`;
-      const bookNameForReport = bookQuery.value; // Capture book name at the time of generation
+    if (!response.body) {
+      throw new Error('Response body is undefined, cannot process stream.');
+    }
 
-      console.log(`[InputPage] handleSubmitReportRequest: Report content successfully received. Report ID: ${reportId}, Book Name: ${bookNameForReport}`);
-      localStorage.setItem(reportId, reportContent);
-      console.log('[InputPage] handleSubmitReportRequest: Report content saved to localStorage.');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
 
-      // fake loader快速补齐到100%，然后跳转
-      fastFinishLoaderAndJump(() => {
-        isLoading.value = false; // isLoading is set to false HERE in the success callback
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        console.log('[InputPage] Stream finished.');
+        // Do not force to 100% here, let animateProgressToCompletion handle it
+        break;
+      }
+      
+      buffer += decoder.decode(value, { stream: true });
+      let eolIndex;
+      while ((eolIndex = buffer.indexOf('\n\n')) >= 0) {
+        const messageLine = buffer.slice(0, eolIndex);
+        buffer = buffer.slice(eolIndex + 2);
+
+        const lines = messageLine.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonData = line.substring(5).trim();
+            if (jsonData === '[DONE]') {
+              console.log('[InputPage] Received [DONE] marker from stream.');
+              // Do not force to 100% here, break or continue and let animation handle final state
+              // depending on if [DONE] truly means no more data chunks will be processed by the reader.
+              // For safety, we'll let the main reader loop complete via `done`.
+              continue; 
+            }
+            if (jsonData) {
+              try {
+                const parsed = JSON.parse(jsonData);
+                if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
+                  if (parsed.choices[0].delta.content) {
+                    streamingReportContent.value += parsed.choices[0].delta.content;
+                    const currentCharCount = streamingReportContent.value.length;
+                    // Progress can exceed 100 if content is longer than target, cap at 100 for display.
+                    realProgress.value = Math.min(Math.floor((currentCharCount / TARGET_CHAR_COUNT) * 100), 100);
+                  } 
+                } else if (parsed.error) {
+                  console.error('[InputPage] Stream error object from API:', parsed.error);
+                  error.value = `流式传输错误: ${parsed.error.message || JSON.stringify(parsed.error)}`;
+                }
+              } catch (e) {
+                console.warn('[InputPage] Failed to parse JSON from stream data line:', jsonData, e);
+              }
+            }
+          }
+        }
+      }
+    }
+    // End of while (true) for reader
+
+    const finalizeReportGeneration = () => {
+      if (streamingReportContent.value) {
+        const reportContent = streamingReportContent.value;
+        const reportId = `report-${Date.now()}`;
+        const bookNameForReport = bookQuery.value;
+
+        console.log(`[InputPage] handleSubmitReportRequest: Report content successfully streamed. Report ID: ${reportId}, Book Name: ${bookNameForReport}`);
+        localStorage.setItem(reportId, reportContent);
+        console.log('[InputPage] handleSubmitReportRequest: Full report content saved to localStorage.');
+        
+        isLoading.value = false;
         router.push({
           name: 'ReportPage',
           params: { reportId: reportId },
           query: { bookName: bookNameForReport }
         });
-      });
-      console.log('[InputPage] handleSubmitReportRequest: Navigating to ReportPage.');
-    } else {
-      console.error('[InputPage] handleSubmitReportRequest: API response structure is not as expected. Response data:', response ? response.data : 'Response is undefined');
-      error.value = '生成报告失败：API响应格式不正确或内容缺失。';
-      if (response && response.data && response.data.error && response.data.error.message) {
-        error.value += ` (后端错误: ${response.data.error.message})`;
+        console.log('[InputPage] handleSubmitReportRequest: Navigating to ReportPage.');
+      } else if (!error.value) { 
+        console.error('[InputPage] handleSubmitReportRequest: Stream completed but no content was received or error previously set.');
+        error.value = '报告生成失败：未能从流中获取任何内容。';
+        isLoading.value = false;
+      } else { 
+          isLoading.value = false; 
       }
-      // fakeProgress.value = 100; // Optional: visually complete progress on error
-      if (progressTimer) clearTimeout(progressTimer); // Clear slow timer
-      if (fastFinishTimer) clearTimeout(fastFinishTimer); // Clear fast timer if any
-      isLoading.value = false; // Set isLoading to false on API response structure error
+    };
+
+    // Animate progress to 100% if not already there
+    if (realProgress.value < 100 && streamingReportContent.value) { // only animate if content exists
+      let currentAnimProgress = realProgress.value;
+      const animate = () => {
+        if (currentAnimProgress < 100) {
+          currentAnimProgress = Math.min(currentAnimProgress + 5, 100); // Increment by 5, cap at 100
+          realProgress.value = currentAnimProgress;
+          animationFrameId = requestAnimationFrame(animate);
+        } else {
+          if (animationFrameId) cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
+          finalizeReportGeneration();
+        }
+      };
+      animationFrameId = requestAnimationFrame(animate);
+    } else {
+      // If already 100% or no content to justify animation, finalize directly
+      realProgress.value = 100; // Ensure it shows 100 if content was generated
+      finalizeReportGeneration();
     }
+
   } catch (apiError) {
-    console.error('[InputPage] handleSubmitReportRequest: Error calling apiService.generateReport:', apiError);
+    console.error('[InputPage] handleSubmitReportRequest: Error processing report request or stream:', apiError);
     let errorMessage = '生成报告失败，请检查网络连接或稍后再试。';
-    if (apiError.response) {
-      console.error('[InputPage] handleSubmitReportRequest: API Error Response Data:', apiError.response.data);
-      console.error('[InputPage] handleSubmitReportRequest: API Error Response Status:', apiError.response.status);
-      console.error('[InputPage] handleSubmitReportRequest: API Error Response Headers:', apiError.response.headers);
-      const backendErrorMsg = apiError.response.data && apiError.response.data.error && apiError.response.data.error.message 
-                              ? apiError.response.data.error.message 
-                              : '未知后端错误';
-      errorMessage = `API错误 (${apiError.response.status}): ${backendErrorMsg}`;
-       if (apiError.response.data && apiError.response.data.error && apiError.response.data.error.param) {
-        errorMessage += ` (参数: ${apiError.response.data.error.param})`;
-      }
-      if (apiError.response.data && apiError.response.data.error && apiError.response.data.error.code) {
-        errorMessage += ` (代码: ${apiError.response.data.error.code})`;
-      }
-    } else if (apiError.request) {
-      console.error('[InputPage] handleSubmitReportRequest: API Error - No response received:', apiError.request);
-      errorMessage = '生成报告失败：未能从服务器获取响应。';
-    } else {
-      console.error('[InputPage] handleSubmitReportRequest: API Error - Request setup issue:', apiError.message);
-      errorMessage = `生成报告失败：请求设置错误 (${apiError.message})。`;
+    if (apiError && apiError.message) {
+        errorMessage = `错误: ${apiError.message}`;
     }
     error.value = errorMessage;
-    
-    // Clear timers and set isLoading to false on any API catch error
-    if (progressTimer) clearTimeout(progressTimer);
-    if (fastFinishTimer) clearTimeout(fastFinishTimer);
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
     isLoading.value = false; 
-    
-  } finally {
-    // The finally block is now less critical for isLoading and fastFinishTimer,
-    // as those are handled in the success callback or catch blocks.
-    // It could potentially be used to clear progressTimer if it's part of a very long-running process
-    // that might not be covered by fastFinishLoaderAndJump's own clearing.
-    // For now, let's leave it minimal or even empty.
-    // console.log('[InputPage] handleSubmitReportRequest: Finally block executed.');
-  }
+  } 
+  // No finally block needed for old fake loader timers
 };
 
-const clearError = () => {
-  error.value = null;
-};
-
-// Added function definition for clearErrorAndFocusInput
 const clearErrorAndFocusInput = async () => {
   error.value = null;
-  await nextTick(); // Wait for DOM update after error.value is cleared
+  streamingReportContent.value = ''; 
+  realProgress.value = 0; 
+  if (animationFrameId) cancelAnimationFrame(animationFrameId);
+  animationFrameId = null;
+  await nextTick(); 
   if (bookQueryInput.value) { 
-    bookQueryInput.value.focus(); // Now uncommented
+    bookQueryInput.value.focus();
   } else {
     console.warn('[InputPage] bookQueryInput ref is not available to focus.');
   }
@@ -473,5 +489,29 @@ const showRecentReports = () => {
   font-size: 0.95em;
   color: #333;
   letter-spacing: 1px;
+}
+
+.streaming-preview {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  max-height: 300px; /* Limit height and make it scrollable */
+  overflow-y: auto; /* Add scroll for overflow */
+}
+
+.streaming-preview h3 {
+  margin-top: 0;
+  font-size: 1.1em;
+  color: #333;
+}
+
+.streaming-text-display {
+  white-space: pre-wrap; /* Wrap text and preserve newlines */
+  word-wrap: break-word; /* Break long words */
+  font-family: monospace; /* Good for seeing raw output */
+  font-size: 0.9em;
+  color: #555;
 }
 </style> 

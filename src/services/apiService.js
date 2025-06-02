@@ -48,10 +48,10 @@ export default {
 其他部分请根据作品内容自行发挥。每部分需要字数可以略有浮动，但整篇最终要接近 10000 字。
 
 **注意：**
-- 每一部分都请单独用 Markdown 二级标题标明，例如 “## 一、作者简介（约 1400 字）”。  
+- 每一部分都请单独用 Markdown 二级标题标明，例如 "## 一、作者简介（约 1400 字）"。  
 - 严格按照上面给的字数段分配，每部分写到接近对应字数即可，不要少写。  
-- 在每一节末尾都**不要**写 “是否继续？”、“待续” 或任何分段提示；而是直接从下一部分接着写。  
-- 最后一节写完后，请在报告末尾加上一段“全文字数统计”确认字数是否接近 10000（可以写：本文总字数约 X 字）。  
+- 在每一节末尾都**不要**写 "是否继续？"、"待续" 或任何分段提示；而是直接从下一部分接着写。  
+- 最后一节写完后，请在报告末尾加上一段"全文字数统计"确认字数是否接近 10000（可以写：本文总字数约 X 字）。  
 - 严格引用学术性英文源（可注明至少两三条参考文献，但不必在正文里标注具体页码）。  
 - 绝不凭空杜撰，与《${bookDetails.bookQuery}》相关的引用必须来自已发表的权威译本或论文。  
 - 用中文输出，行文流畅，面向普通读者。
@@ -63,12 +63,27 @@ export default {
 `,
         },
       ],
-      // stream: false, // Depending on if your new-api and frontend handle streaming
+      stream: true, // Enable streaming
       // temperature: 0.7, // Example: Could add temperature if new-api supports it
     };
 
-    // Using a generic OpenAI-compatible endpoint. Adjust if your new-api uses a different path.
-    return apiClient.post('/v1/chat/completions', payload);
+    const response = await fetch(`${API_BASE_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      // Handle HTTP errors
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      console.error("Error from API:", response.status, errorData);
+      throw new Error(`API Error: ${response.status} ${errorData.message || 'Unknown error'}`);
+    }
+
+    return response; // Return the raw Response object
   },
 
   // You can add other API functions here, e.g., for getting user status, history, etc.
