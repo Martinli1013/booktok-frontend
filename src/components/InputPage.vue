@@ -51,7 +51,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import apiService from '../services/apiService';
 
@@ -206,7 +206,11 @@ const handleSubmitReportRequest = async () => {
     console.error('[InputPage] handleSubmitReportRequest: Error processing report request or stream:', apiError);
     let errorMessage = '生成报告失败，请检查网络连接或稍后再试。';
     if (apiError && apiError.message) {
-        errorMessage = `错误: ${apiError.message}`;
+        if (apiError.message.toLowerCase().includes('load failed') || apiError.message.toLowerCase().includes('network request failed')) {
+            errorMessage = '网络连接中断（可能由于切换应用导致）。请尝试重新生成报告。';
+        } else {
+            errorMessage = `错误: ${apiError.message}`;
+        }
     }
     error.value = errorMessage;
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -214,6 +218,12 @@ const handleSubmitReportRequest = async () => {
     isLoading.value = false; 
   } 
   // No finally block needed for old fake loader timers
+
+  if (bookQueryInput.value) { 
+    bookQueryInput.value.focus();
+  } else {
+    console.warn('[InputPage] bookQueryInput ref is not available to focus.');
+  }
 };
 
 const clearErrorAndFocusInput = async () => {
@@ -229,6 +239,26 @@ const clearErrorAndFocusInput = async () => {
     console.warn('[InputPage] bookQueryInput ref is not available to focus.');
   }
 };
+
+// Handle page visibility changes
+const handleVisibilityChange = () => {
+  if (document.hidden === false && isLoading.value && error.value && error.value.includes('网络连接中断')) {
+    console.log('[InputPage] Page became visible after a network interruption during loading. Clearing state.');
+    clearErrorAndFocusInput(); 
+    // Optionally, provide a more specific message or UI indication that it was auto-reset.
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId); // Ensure animation is cleaned up
+  }
+});
 
 // 显示最近报告的逻辑 (后续填充)
 const showRecentReports = () => {
