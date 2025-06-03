@@ -45,7 +45,7 @@
     <footer class="page-footer">
       <p>&copy; {{ new Date().getFullYear() }} Booktok. 保留所有权利。</p>
       <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.4</p>
+      <p class="version">版本 1.0.5</p>
     </footer>
   </div>
 </template>
