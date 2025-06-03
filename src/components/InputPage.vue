@@ -45,7 +45,7 @@
     <footer class="page-footer">
       <p>&copy; {{ new Date().getFullYear() }} Booktok. 保留所有权利。</p>
       <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.3</p>
+      <p class="version">版本 1.0.4</p>
     </footer>
   </div>
 </template>
@@ -103,7 +103,8 @@ const handleSubmitReportRequest = async () => {
       const { done, value } = await reader.read();
       if (done) {
         console.log('[InputPage] Stream finished.');
-        // Do not force to 100% here, let animateProgressToCompletion handle it
+        // Stream is done, now we can complete the progress to 100%
+        // This will be handled by the animation logic or direct set after the loop
         break;
       }
       
@@ -119,9 +120,8 @@ const handleSubmitReportRequest = async () => {
             const jsonData = line.substring(5).trim();
             if (jsonData === '[DONE]') {
               console.log('[InputPage] Received [DONE] marker from stream.');
-              // Do not force to 100% here, break or continue and let animation handle final state
-              // depending on if [DONE] truly means no more data chunks will be processed by the reader.
-              // For safety, we'll let the main reader loop complete via `done`.
+              // Stream is done, now we can complete the progress to 100%
+              // This will be handled by the animation logic or direct set after the loop
               continue; 
             }
             if (jsonData) {
@@ -131,8 +131,9 @@ const handleSubmitReportRequest = async () => {
                   if (parsed.choices[0].delta.content) {
                     streamingReportContent.value += parsed.choices[0].delta.content;
                     const currentCharCount = streamingReportContent.value.length;
-                    // Progress can exceed 100 if content is longer than target, cap at 100 for display.
-                    realProgress.value = Math.min(Math.floor((currentCharCount / TARGET_CHAR_COUNT) * 100), 100);
+                    // Progress is based on TARGET_CHAR_COUNT but capped at 95% during streaming.
+                    const progressBasedOnChars = Math.floor((currentCharCount / TARGET_CHAR_COUNT) * 100);
+                    realProgress.value = Math.min(progressBasedOnChars, 95); // Cap at 95%
                   } 
                 } else if (parsed.error) {
                   console.error('[InputPage] Stream error object from API:', parsed.error);
@@ -175,23 +176,29 @@ const handleSubmitReportRequest = async () => {
     };
 
     // Animate progress to 100% if not already there
-    if (realProgress.value < 100 && streamingReportContent.value) { // only animate if content exists
-      let currentAnimProgress = realProgress.value;
-      const animate = () => {
-        if (currentAnimProgress < 100) {
-          currentAnimProgress = Math.min(currentAnimProgress + 5, 100); // Increment by 5, cap at 100
-          realProgress.value = currentAnimProgress;
-          animationFrameId = requestAnimationFrame(animate);
+    // If stream completed and content was received, progress should go to 100%.
+    if (streamingReportContent.value) { // Only animate or finalize if content exists
+      let currentProg = realProgress.value; // Could be at 95% or less
+      const targetProg = 100;
+
+      const animateFinalProgress = () => {
+        if (currentProg < targetProg) {
+          currentProg = Math.min(currentProg + 5, targetProg); // Increment, cap at 100
+          realProgress.value = currentProg;
+          animationFrameId = requestAnimationFrame(animateFinalProgress);
         } else {
           if (animationFrameId) cancelAnimationFrame(animationFrameId);
           animationFrameId = null;
-          finalizeReportGeneration();
+          finalizeReportGeneration(); // Call finalize after animation completes
         }
       };
-      animationFrameId = requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animateFinalProgress);
     } else {
-      // If already 100% or no content to justify animation, finalize directly
-      realProgress.value = 100; // Ensure it shows 100 if content was generated
+      // If no content, but stream ended (e.g. error before content or empty report)
+      // or if error.value is already set, finalize directly.
+      // If there was an error, isLoading should be false.
+      // If no content and no error, it's a scenario to show an error message.
+      realProgress.value = 100; // Mark as 100% if trying to finalize without content for some reason.
       finalizeReportGeneration();
     }
 
