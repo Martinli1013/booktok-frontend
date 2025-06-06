@@ -89,7 +89,17 @@
       <div v-if="error" class="error-message">
         <p><strong>处理请求时遇到问题：</strong></p>
         <p>{{ error }}</p>
-        <button @click="resetForm" type="button" class="retry-btn">知道了，重试</button>
+        <div class="error-actions">
+          <button @click="resetForm" type="button" class="retry-btn">知道了，重试</button>
+          <button 
+            v-if="reportContent.length > 500" 
+            @click="emergencyRecover" 
+            type="button" 
+            class="recover-btn"
+          >
+            紧急恢复 (已生成{{ Math.floor(reportContent.length / 100) }}00+字)
+          </button>
+        </div>
       </div>
     </form>
 
@@ -166,25 +176,50 @@ const formatTime = (ms) => {
 
 // 页面可见性管理
 const handleVisibilityChange = () => {
+  const wasVisible = isPageVisible.value;
   isPageVisible.value = !document.hidden;
+  
   console.log('页面可见性变化:', isPageVisible.value ? '可见' : '隐藏');
   
-  if (!isPageVisible.value && isLoading.value) {
+  // 只在页面正在加载时处理可见性变化
+  if (!isLoading.value) return;
+  
+  if (!isPageVisible.value) {
+    // 页面隐藏时，只显示警告，不做其他操作
     showVisibilityWarning.value = true;
     console.log('检测到页面隐藏，显示警告');
-  } else if (isPageVisible.value && isLoading.value && connectionRetries.value > 0) {
+  } else if (wasVisible === false && isPageVisible.value) {
+    // 页面从隐藏变为可见
     showVisibilityWarning.value = false;
-    console.log('页面重新可见，尝试恢复连接');
-    attemptReconnection();
+    console.log('页面重新可见');
+    
+    // 只有在确实有连接问题时才尝试重连
+    if (connectionRetries.value > 0 && !isReconnecting.value) {
+      console.log('检测到之前有连接问题，尝试恢复连接');
+      setTimeout(() => attemptReconnection(), 1000); // 延迟1秒再重连
+    }
   }
 };
 
 // 连接重试机制
 const attemptReconnection = async () => {
-  if (isReconnecting.value || !isLoading.value) return;
+  // 严格的状态检查
+  if (isReconnecting.value || !isLoading.value || !isPageVisible.value) {
+    console.log('跳过重连: isReconnecting=', isReconnecting.value, 'isLoading=', isLoading.value, 'isPageVisible=', isPageVisible.value);
+    return;
+  }
+  
+  // 检查是否已经超过最大重试次数
+  if (connectionRetries.value >= maxRetries.value) {
+    console.log('已达到最大重试次数，停止重连');
+    error.value = `连接多次中断，已尝试重连${maxRetries.value}次。请刷新页面重新开始。`;
+    cleanup();
+    return;
+  }
   
   isReconnecting.value = true;
-  console.log(`尝试重连，第${connectionRetries.value + 1}次`);
+  connectionRetries.value++;
+  console.log(`尝试重连，第${connectionRetries.value}次`);
   
   try {
     // 检查网络连接
@@ -192,44 +227,76 @@ const attemptReconnection = async () => {
       throw new Error('网络连接已断开');
     }
     
+    // 清理之前的连接
+    if (currentReader.value) {
+      try {
+        currentReader.value.releaseLock();
+        currentReader.value = null;
+      } catch (e) {
+        console.warn('清理旧连接失败:', e);
+      }
+    }
+    
     // 延迟重试
     await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
+    
+    // 再次检查状态
+    if (!isLoading.value || !isPageVisible.value) {
+      console.log('状态已变化，取消重连');
+      return;
+    }
     
     // 重新发起请求，从上次位置继续
     await continueFromLastPosition();
     
   } catch (err) {
     console.error('重连失败:', err);
-    connectionRetries.value++;
     
     if (connectionRetries.value >= maxRetries.value) {
-      error.value = `连接多次中断，已尝试重连${maxRetries.value}次。请检查网络连接并重新开始。`;
+      error.value = `连接多次中断，已尝试重连${maxRetries.value}次。请刷新页面重新开始。`;
       cleanup();
     } else {
-      // 继续尝试重连
-      setTimeout(attemptReconnection, CONFIG.RETRY_DELAY * connectionRetries.value);
+      // 继续尝试重连，但增加延迟
+      console.log(`将在${CONFIG.RETRY_DELAY * connectionRetries.value}ms后再次尝试重连`);
+      setTimeout(() => {
+        if (isLoading.value && isPageVisible.value) {
+          attemptReconnection();
+        }
+      }, CONFIG.RETRY_DELAY * connectionRetries.value);
     }
   } finally {
     isReconnecting.value = false;
   }
 };
 
-// 从上次位置继续
+// 从上次位置继续 - 添加更严格的状态检查
 const continueFromLastPosition = async () => {
   console.log('从上次位置继续生成, 当前内容长度:', reportContent.value.length);
   
-  const response = await apiService.generateReport({ 
-    bookQuery: bookQuery.value,
-    continueFrom: reportContent.value, // 传递已有内容
-    sessionId: sessionId.value
-  });
-  
-  if (!response.body) {
-    throw new Error('无法获取响应流');
+  // 状态检查
+  if (!isLoading.value || !isPageVisible.value) {
+    console.log('状态不正确，取消继续生成');
+    return;
   }
   
-  currentReader.value = response.body.getReader();
-  await processStream(currentReader.value);
+  try {
+    const response = await apiService.generateReport({ 
+      bookQuery: bookQuery.value,
+      continueFrom: reportContent.value.length > 100 ? reportContent.value : null, // 只有内容足够多时才续传
+      sessionId: sessionId.value
+    });
+    
+    if (!response.body) {
+      throw new Error('无法获取响应流');
+    }
+    
+    currentReader.value = response.body.getReader();
+    await processStream(currentReader.value);
+    
+  } catch (err) {
+    console.error('继续生成失败:', err);
+    throw err; // 重新抛出错误让上层处理
+  }
 };
 
 // 网络状态监听
@@ -400,6 +467,27 @@ const processStream = async (reader) => {
 
   try {
     while (true) {
+      // 检查状态，如果页面不可见且没有在重连，暂停处理
+      if (!isPageVisible.value && !isReconnecting.value) {
+        console.log('页面不可见，暂停流处理');
+        await new Promise(resolve => {
+          const checkVisibility = () => {
+            if (isPageVisible.value || !isLoading.value) {
+              resolve();
+            } else {
+              setTimeout(checkVisibility, 1000);
+            }
+          };
+          checkVisibility();
+        });
+      }
+      
+      // 再次检查是否应该继续
+      if (!isLoading.value) {
+        console.log('加载已停止，终止流处理');
+        break;
+      }
+      
       const { done, value } = await reader.read();
       if (done) break;
       
@@ -434,7 +522,11 @@ const processStream = async (reader) => {
                   autoScroll();
                   
                   // 重置重试计数器（成功接收到数据）
-                  connectionRetries.value = 0;
+                  if (connectionRetries.value > 0) {
+                    console.log('成功接收数据，重置重试计数器');
+                    connectionRetries.value = 0;
+                    showVisibilityWarning.value = false;
+                  }
                 }
               } catch (e) {
                 console.warn('解析JSON失败:', e);
@@ -460,16 +552,25 @@ const processStream = async (reader) => {
   } catch (err) {
     console.error('流处理错误:', err);
     
-    // 如果是在页面可见时发生错误，尝试重连
+    // 如果是页面可见时发生错误，且还未达到最大重试次数，尝试重连
     if (isPageVisible.value && connectionRetries.value < maxRetries.value) {
-      connectionRetries.value++;
-      console.log('流处理中断，尝试重连...');
-      setTimeout(attemptReconnection, CONFIG.RETRY_DELAY);
+      console.log('流处理中断，标记需要重连');
+      // 不立即重连，等待页面可见性变化触发
+      if (connectionRetries.value === 0) {
+        connectionRetries.value = 1; // 标记有连接问题
+      }
+      showVisibilityWarning.value = true;
     } else {
-      throw err;
+      // 达到最大重试次数或页面不可见时的错误
+      if (connectionRetries.value >= maxRetries.value) {
+        error.value = '连接多次中断，请刷新页面重新开始。';
+      } else {
+        error.value = '连接中断，请检查网络连接后刷新页面重试。';
+      }
+      cleanup();
     }
   } finally {
-    if (reader) {
+    if (reader && !isReconnecting.value) {
       try {
         reader.releaseLock();
       } catch (e) {
@@ -549,6 +650,40 @@ const resetForm = async () => {
   
   await nextTick();
   bookQueryInput.value?.focus();
+};
+
+// 紧急恢复
+const emergencyRecover = () => {
+  if (reportContent.value && reportContent.value.length > 500) {
+    console.log('执行紧急恢复，当前内容长度:', reportContent.value.length);
+    
+    // 添加一个说明，告诉用户这是不完整的报告
+    const recoveredContent = reportContent.value + '\n\n---\n\n**注意：此报告因网络中断未完全生成，以上为已生成的部分内容。**';
+    
+    // 保存到localStorage
+    const reportId = `emergency-${Date.now()}`;
+    localStorage.setItem(reportId, recoveredContent);
+    
+    // 清理状态
+    cleanup();
+    
+    // 跳转到报告页面
+    router.push({
+      name: 'ReportPage',
+      params: { reportId },
+      query: { 
+        bookName: bookQuery.value,
+        emergency: 'true'
+      }
+    }).then(() => {
+      console.log('紧急恢复成功，已跳转到报告页面');
+    }).catch(err => {
+      console.error('紧急恢复跳转失败:', err);
+      error.value = '跳转失败，请手动刷新页面';
+    });
+  } else {
+    error.value = '生成内容太少，无法进行紧急恢复';
+  }
 };
 
 // 生命周期
@@ -705,13 +840,40 @@ onUnmounted(() => {
   color: #d8000c !important;
 }
 
+.error-actions {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .error-message button {
-  margin-top: 10px;
   padding: 8px 15px;
-  background-color: #d8000c;
-  color: white;
   border: 1px solid #333;
   cursor: pointer;
+  font-size: 0.9em;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.retry-btn {
+  background-color: #d8000c;
+  color: white;
+}
+
+.retry-btn:hover {
+  background-color: #b50000;
+}
+
+.recover-btn {
+  background-color: #ff9800;
+  color: white;
+  border-color: #333 !important;
+}
+
+.recover-btn:hover {
+  background-color: #e68900;
 }
 
 .pixel-loader {
