@@ -597,10 +597,10 @@ onUnmounted(() => {
 @media (max-width: 600px) {
   .input-page {
     max-width: 100%;
-    padding: 0 8px;
-    border-width: 1px;
-    box-shadow: none;
-    margin: 0 auto;
+    padding: 8px;
+    border: 2px solid #333; /* 恢复pixel风格边框 */
+    box-shadow: 4px 4px 0px #333; /* 恢复pixel风格阴影 */
+    margin: 8px auto;
     background-color: #f0f0f0;
   }
   
