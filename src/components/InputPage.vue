@@ -138,7 +138,7 @@ const updateProgress = (targetProgress) => {
   }
   
   const step = diff * 0.1;
-  progress.value = Math.min(progress.value + step, 90);
+  progress.value = Math.min(progress.value + step, targetProgress); // 修复：移除90%限制
   
   if (Math.abs(progress.value - targetProgress) > 0.1) {
     progressAnimationId = requestAnimationFrame(() => updateProgress(targetProgress));
@@ -276,6 +276,7 @@ const generateReport = async () => {
         progress.value = Math.min(progress.value + 2, 100);
         progressAnimationId = requestAnimationFrame(finishProgress);
       } else {
+        console.log('进度条达到100%，准备调用finalizeReport');
         finalizeReport();
       }
     };
@@ -290,17 +291,37 @@ const generateReport = async () => {
 
 // 完成报告
 const finalizeReport = () => {
+  console.log('finalizeReport 被调用, reportContent长度:', reportContent.value.length);
+  
+  // 先清理动画
+  if (progressAnimationId) {
+    cancelAnimationFrame(progressAnimationId);
+    progressAnimationId = null;
+  }
+  
   if (reportContent.value) {
     const reportId = `report-${Date.now()}`;
     localStorage.setItem(reportId, reportContent.value);
+    
+    console.log('准备跳转到 ReportPage, reportId:', reportId, 'bookName:', bookQuery.value);
+    
+    // 先设置loading为false，然后再跳转
+    isLoading.value = false;
+    stopTimeTracking();
     
     router.push({
       name: 'ReportPage',
       params: { reportId },
       query: { bookName: bookQuery.value }
+    }).then(() => {
+      console.log('路由跳转成功');
+    }).catch(err => {
+      console.error('路由跳转失败:', err);
     });
+  } else {
+    console.log('reportContent为空，不进行跳转');
+    cleanup();
   }
-  cleanup();
 };
 
 // 清理函数
