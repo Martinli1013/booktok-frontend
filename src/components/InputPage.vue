@@ -1,8 +1,22 @@
 <template>
   <div class="input-page">
     <header class="page-header">
-      <img src="/images/booktok-logo.png" alt="Booktok Logo" class="logo" />
-      <img src="/images/pixel-header.png" alt="Booktok Header" class="header-image-title" />
+      <img 
+        src="/images/booktok-logo.png" 
+        alt="Booktok Logo" 
+        class="logo"
+        loading="eager"
+        decoding="async"
+        fetchpriority="high"
+      />
+      <img 
+        src="/images/pixel-header.png" 
+        alt="Booktok Header" 
+        class="header-image-title"
+        loading="eager"
+        decoding="async"
+        fetchpriority="high"
+      />
       <p>输入书籍名称，带您快速读懂这本书</p>
     </header>
 
@@ -82,7 +96,7 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
       <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.8</p>
+      <p class="version">版本 1.0.11</p>
     </footer>
   </div>
 </template>
@@ -599,13 +613,26 @@ onUnmounted(() => {
   width: 200px;
   height: auto;
   margin-bottom: -35px;
+  /* 性能优化 */
+  will-change: transform;
+  transform: translateZ(0);
+  image-rendering: optimizeQuality;
+  /* 指定明确尺寸避免重排 */
+  max-width: 200px;
+  aspect-ratio: auto;
 }
 
 .header-image-title {
   display: block;
   max-width: 350px;
   height: auto;
-  margin: 0px auto 15px auto;
+  margin: 0 auto;
+  /* 性能优化 */
+  will-change: transform;
+  transform: translateZ(0);
+  image-rendering: optimizeQuality;
+  /* 指定明确尺寸避免重排 */
+  aspect-ratio: auto;
 }
 
 .input-form .form-group {
