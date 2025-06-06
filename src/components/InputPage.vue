@@ -26,6 +26,16 @@
         {{ isLoading ? 'Booktok飞速阅读中...' : '快速读书' }}
       </button>
 
+      <!-- 使用提示 -->
+      <div v-if="!isLoading" class="usage-tips">
+        <div class="tips-header">💡 使用提示</div>
+        <ul class="tips-list">
+          <li>生成报告需要5-10分钟，建议保持页面在前台</li>
+          <li>如不慎切换页面，返回时系统会自动恢复连接</li>
+          <li>请确保网络连接稳定，避免频繁切换网络</li>
+        </ul>
+      </div>
+
       <div v-if="isLoading" class="loading-indicator">
         <p>{{ progressMessage }}</p>
         <div class="pixel-loader"></div>
@@ -34,6 +44,24 @@
             <div class="progress-bar-inner" :style="{ width: progress + '%' }"></div>
           </div>
           <div class="progress-text">已完成 {{ Math.round(progress) }}% - 已用时 {{ formatTime(elapsedTime) }}</div>
+        </div>
+        
+        <!-- 页面可见性警告 -->
+        <div v-if="showVisibilityWarning" class="visibility-warning">
+          <div class="warning-icon">⚠️</div>
+          <div class="warning-content">
+            <h4>检测到页面切换</h4>
+            <p>为确保最佳体验，建议保持页面在前台。</p>
+            <p v-if="!navigator.onLine">网络连接已断开，请检查网络连接。</p>
+            <p v-else-if="isReconnecting">正在尝试重新连接... ({{ connectionRetries }}/{{ maxRetries }})</p>
+            <p v-else>返回页面时我们会自动恢复连接。</p>
+          </div>
+        </div>
+        
+        <!-- 重连状态 -->
+        <div v-if="isReconnecting" class="reconnection-status">
+          <div class="reconnect-spinner"></div>
+          <p>连接中断，正在重新连接... (尝试 {{ connectionRetries }}/{{ maxRetries }})</p>
         </div>
         
         <div v-if="reportContent" class="streaming-preview">
@@ -79,18 +107,33 @@ const progress = ref(0);
 const startTime = ref(0);
 const elapsedTime = ref(0);
 
+// 连接状态管理
+const isPageVisible = ref(true);
+const connectionRetries = ref(0);
+const maxRetries = ref(3);
+const currentReader = ref(null);
+const isReconnecting = ref(false);
+const lastKnownPosition = ref(0);
+const sessionId = ref(null);
+const showVisibilityWarning = ref(false);
+
 // 配置常量
 const CONFIG = {
   TARGET_LENGTH: 15000,
   INITIAL_DURATION: 25000,
   STREAMING_DURATION: 240000,
-  FINAL_DURATION: 3000
+  FINAL_DURATION: 3000,
+  RETRY_DELAY: 2000
 };
 
 // 计算属性
 const currentYear = computed(() => new Date().getFullYear());
 
 const progressMessage = computed(() => {
+  if (isReconnecting.value) {
+    return `连接中断，正在恢复连接中... (第${connectionRetries.value}次尝试)`;
+  }
+  
   const p = progress.value;
   if (p < 10) return '正在启动AI生成引擎...';
   if (p < 30) return '正在分析书籍内容并构建报告结构...';
@@ -105,6 +148,86 @@ const formatTime = (ms) => {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   return minutes > 0 ? `${minutes}分${seconds % 60}秒` : `${seconds}秒`;
+};
+
+// 页面可见性管理
+const handleVisibilityChange = () => {
+  isPageVisible.value = !document.hidden;
+  console.log('页面可见性变化:', isPageVisible.value ? '可见' : '隐藏');
+  
+  if (!isPageVisible.value && isLoading.value) {
+    showVisibilityWarning.value = true;
+    console.log('检测到页面隐藏，显示警告');
+  } else if (isPageVisible.value && isLoading.value && connectionRetries.value > 0) {
+    showVisibilityWarning.value = false;
+    console.log('页面重新可见，尝试恢复连接');
+    attemptReconnection();
+  }
+};
+
+// 连接重试机制
+const attemptReconnection = async () => {
+  if (isReconnecting.value || !isLoading.value) return;
+  
+  isReconnecting.value = true;
+  console.log(`尝试重连，第${connectionRetries.value + 1}次`);
+  
+  try {
+    // 检查网络连接
+    if (!navigator.onLine) {
+      throw new Error('网络连接已断开');
+    }
+    
+    // 延迟重试
+    await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
+    
+    // 重新发起请求，从上次位置继续
+    await continueFromLastPosition();
+    
+  } catch (err) {
+    console.error('重连失败:', err);
+    connectionRetries.value++;
+    
+    if (connectionRetries.value >= maxRetries.value) {
+      error.value = `连接多次中断，已尝试重连${maxRetries.value}次。请检查网络连接并重新开始。`;
+      cleanup();
+    } else {
+      // 继续尝试重连
+      setTimeout(attemptReconnection, CONFIG.RETRY_DELAY * connectionRetries.value);
+    }
+  } finally {
+    isReconnecting.value = false;
+  }
+};
+
+// 从上次位置继续
+const continueFromLastPosition = async () => {
+  console.log('从上次位置继续生成, 当前内容长度:', reportContent.value.length);
+  
+  const response = await apiService.generateReport({ 
+    bookQuery: bookQuery.value,
+    continueFrom: reportContent.value, // 传递已有内容
+    sessionId: sessionId.value
+  });
+  
+  if (!response.body) {
+    throw new Error('无法获取响应流');
+  }
+  
+  currentReader.value = response.body.getReader();
+  await processStream(currentReader.value);
+};
+
+// 网络状态监听
+const handleOnlineStatusChange = () => {
+  if (!navigator.onLine && isLoading.value) {
+    console.log('网络连接断开');
+    showVisibilityWarning.value = true;
+  } else if (navigator.onLine && isLoading.value && showVisibilityWarning.value) {
+    console.log('网络连接恢复');
+    showVisibilityWarning.value = false;
+    attemptReconnection();
+  }
 };
 
 // 进度计算（简化版）
@@ -200,12 +323,16 @@ const generateReport = async () => {
     return;
   }
   
-      // 重置状态
-    isLoading.value = true;
-    error.value = null;
-    reportContent.value = '';
-    progress.value = 0;
-    isAtBottom = true;
+  // 重置状态
+  isLoading.value = true;
+  error.value = null;
+  reportContent.value = '';
+  progress.value = 0;
+  isAtBottom = true;
+  connectionRetries.value = 0;
+  isReconnecting.value = false;
+  showVisibilityWarning.value = false;
+  sessionId.value = `session-${Date.now()}`;
   
   startTimeTracking();
   
@@ -220,19 +347,50 @@ const generateReport = async () => {
   progressAnimationId = requestAnimationFrame(animateInitial);
 
   try {
-    const response = await apiService.generateReport({ bookQuery: bookQuery.value });
+    const response = await apiService.generateReport({ 
+      bookQuery: bookQuery.value,
+      sessionId: sessionId.value
+    });
     
     if (!response.body) {
       throw new Error('无法获取响应流');
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
+    currentReader.value = response.body.getReader();
+    await processStream(currentReader.value);
 
+  } catch (err) {
+    console.error('生成报告失败:', err);
+    
+    // 检查是否是网络相关错误
+    if (err.message.includes('fetch') || err.message.includes('network') || err.message.includes('NetworkError')) {
+      connectionRetries.value++;
+      if (connectionRetries.value < maxRetries.value && isPageVisible.value) {
+        console.log('检测到网络错误，尝试重连...');
+        setTimeout(attemptReconnection, CONFIG.RETRY_DELAY);
+        return;
+      }
+      error.value = '网络连接中断，请检查网络后重试';
+    } else {
+      error.value = err.message || '生成报告失败，请稍后重试';
+    }
+    
+    cleanup();
+  }
+};
+
+// 流处理函数
+const processStream = async (reader) => {
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      
+      // 更新最后已知位置
+      lastKnownPosition.value = reportContent.value.length;
       
       buffer += decoder.decode(value, { stream: true });
       let eolIndex;
@@ -260,6 +418,9 @@ const generateReport = async () => {
                   
                   // 自动滚动
                   autoScroll();
+                  
+                  // 重置重试计数器（成功接收到数据）
+                  connectionRetries.value = 0;
                 }
               } catch (e) {
                 console.warn('解析JSON失败:', e);
@@ -283,9 +444,24 @@ const generateReport = async () => {
     progressAnimationId = requestAnimationFrame(finishProgress);
 
   } catch (err) {
-    console.error('生成报告失败:', err);
-    error.value = err.message || '生成报告失败，请稍后重试';
-    cleanup();
+    console.error('流处理错误:', err);
+    
+    // 如果是在页面可见时发生错误，尝试重连
+    if (isPageVisible.value && connectionRetries.value < maxRetries.value) {
+      connectionRetries.value++;
+      console.log('流处理中断，尝试重连...');
+      setTimeout(attemptReconnection, CONFIG.RETRY_DELAY);
+    } else {
+      throw err;
+    }
+  } finally {
+    if (reader) {
+      try {
+        reader.releaseLock();
+      } catch (e) {
+        console.warn('释放reader锁失败:', e);
+      }
+    }
   }
 };
 
@@ -332,23 +508,47 @@ const cleanup = () => {
     cancelAnimationFrame(progressAnimationId);
     progressAnimationId = null;
   }
+  
+  // 清理连接状态
+  if (currentReader.value) {
+    try {
+      currentReader.value.releaseLock();
+    } catch (e) {
+      console.warn('清理reader失败:', e);
+    }
+    currentReader.value = null;
+  }
+  
+  connectionRetries.value = 0;
+  isReconnecting.value = false;
+  showVisibilityWarning.value = false;
+  sessionId.value = null;
 };
 
-  // 重置表单
-  const resetForm = async () => {
-    error.value = null;
-    reportContent.value = '';
-    progress.value = 0;
-    isAtBottom = true;
-    cleanup();
-    
-    await nextTick();
-    bookQueryInput.value?.focus();
-  };
+// 重置表单
+const resetForm = async () => {
+  error.value = null;
+  reportContent.value = '';
+  progress.value = 0;
+  isAtBottom = true;
+  cleanup();
+  
+  await nextTick();
+  bookQueryInput.value?.focus();
+};
 
 // 生命周期
 onMounted(() => {
   bookQueryInput.value?.focus();
+  
+  // 添加页面可见性监听
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  // 添加网络状态监听
+  window.addEventListener('online', handleOnlineStatusChange);
+  window.addEventListener('offline', handleOnlineStatusChange);
+  
+  console.log('页面可见性和网络状态监听已启动');
 });
 
 onUnmounted(() => {
@@ -356,6 +556,13 @@ onUnmounted(() => {
   if (scrollTimeout) {
     clearTimeout(scrollTimeout);
   }
+  
+  // 移除事件监听器
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  window.removeEventListener('online', handleOnlineStatusChange);
+  window.removeEventListener('offline', handleOnlineStatusChange);
+  
+  console.log('页面可见性和网络状态监听已清理');
 });
 </script>
 
@@ -687,5 +894,108 @@ onUnmounted(() => {
   .progress-text {
     font-size: 0.8em; /* 当前继承桌面端0.95em，可以设为更小 */
   }
+}
+
+/* 版本信息 */
+.version {
+  font-size: 0.8em;
+  color: #666 !important;
+  margin-top: 0.5em;
+}
+
+/* 页面可见性警告样式 */
+.visibility-warning {
+  background-color: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #856404 !important;
+  box-shadow: 2px 2px 0px #333;
+}
+
+.warning-icon {
+  font-size: 1.5em;
+  margin-top: 2px;
+}
+
+.warning-content h4 {
+  margin: 0 0 8px 0;
+  color: #856404 !important;
+  font-size: 1.1em;
+}
+
+.warning-content p {
+  margin: 4px 0;
+  color: #856404 !important;
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+
+/* 重连状态样式 */
+.reconnection-status {
+  background-color: #e3f2fd;
+  border: 2px solid #2196f3;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1565c0 !important;
+  box-shadow: 2px 2px 0px #333;
+}
+
+.reconnect-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e3f2fd;
+  border-top: 2px solid #2196f3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.reconnection-status p {
+  margin: 0;
+  color: #1565c0 !important;
+  font-size: 0.95em;
+  font-weight: 500;
+}
+
+/* 使用提示样式 */
+.usage-tips {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f9f9f9 !important;
+  border: 2px solid #333;
+  border-radius: 4px;
+  box-shadow: 2px 2px 0px #333;
+}
+
+.tips-header {
+  margin-bottom: 10px;
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #333 !important;
+}
+
+.tips-list {
+  list-style-type: disc;
+  padding-left: 20px;
+  color: #555 !important;
+}
+
+.tips-list li {
+  margin-bottom: 5px;
+  text-align: left;
+  font-size: 0.85em;
 }
 </style> 

@@ -11,28 +11,12 @@ const apiClient = axios.create({
 
 export default {
   async generateReport(bookDetails) {
-    // In a real scenario, bookDetails would be an object like:
-    // { book_name: "The Lord of the Rings", author_name: "J.R.R. Tolkien", word_count: 5000 }
-    // The endpoint '/api/generate-report' is hypothetical and needs to be defined in new-api
-    // The actual request body structure will depend on what new-api expects.
-    // For now, we'll make a call to a placeholder endpoint or a known one like /api/status
-    // to demonstrate the connection.
-    // Let's assume new-api might have an endpoint like '/v1/chat/completions'
-    // which is common for OpenAI compatible APIs.
-
     console.log('Attempting to generate report with details:', bookDetails);
-    console.log('Using API Key:', API_KEY.substring(0, 10) + "..."); // Log prefix of API Key for verification
+    console.log('Using API Key:', API_KEY.substring(0, 10) + "..."); 
     console.log('Using API Base URL:', API_BASE_URL);
 
-    // This is a placeholder payload. You'll need to adjust this based on
-    // the actual endpoint and expected request format of your `new-api`
-    // and how it proxies requests to OpenAI.
-    const payload = {
-      model: 'deepseek-reasoner', // Using the model ID from new-api channel config
-      messages: [
-        {
-          role: 'user',
-          content: `我很喜欢《${bookDetails.bookQuery}》这本书，请根据以下结构，使用英文学术资料为依据，用中文生成一篇深度解读报告，目标总字数约 10000 字（最少不低于 9000 字），并且一次性输出全部内容，不得中途停止或询问是否继续。
+    // 构建基础提示词
+    let basePrompt = `我很喜欢《${bookDetails.bookQuery}》这本书，请根据以下结构，使用英文学术资料为依据，用中文生成一篇深度解读报告，目标总字数约 10000 字（最少不低于 9000 字），并且一次性输出全部内容，不得中途停止或询问是否继续。
 **请确保分析的书籍是《${bookDetails.bookQuery}》，而不是其他任何虚构或相关主题的作品。**
 
 整体结构必须包含以下这四个部分：
@@ -58,13 +42,36 @@ export default {
 
 现在，请根据上述要求，用 Markdown 格式撰写《${bookDetails.bookQuery}》深度解读报告。我是普通读者，读完书之后还是觉得理解有限，希望通过报告来加深我对本书的理解，各个层面、各个角度的理解，关键是让这本书的阅读对我这个普通读者产生更大的影响和触动。让我快速、全面、深刻的理解这本书中的所有重要观点和细节，请适当举例帮助我充分理解观点。
 
-**一次性输出全部内容**，并确保整个文档的字数接近 10000 字。
+**一次性输出全部内容**，并确保整个文档的字数接近 10000 字。`;
 
-`,
+    // 如果是断点续传，修改提示词
+    if (bookDetails.continueFrom) {
+      const contentLength = bookDetails.continueFrom.length;
+      basePrompt = `之前我们在生成《${bookDetails.bookQuery}》的深度解读报告时中断了。以下是已经完成的内容（${contentLength}字）：
+
+${bookDetails.continueFrom}
+
+请从上述内容的断点处继续，完成剩余部分，确保：
+1. 与之前内容自然衔接，不要重复已有内容
+2. 继续按照原定结构完成报告
+3. 保持同样的写作风格和深度
+4. 确保最终总字数接近10000字
+5. 如果已接近完成，请适当补充并加上结语和字数统计
+
+请直接从断点处继续写作，无需重新开始：`;
+    }
+
+    const payload = {
+      model: 'deepseek-reasoner',
+      messages: [
+        {
+          role: 'user',
+          content: basePrompt,
         },
       ],
-      stream: true, // Enable streaming
-      // temperature: 0.7, // Example: Could add temperature if new-api supports it
+      stream: true,
+      // 添加会话标识（虽然后端可能不支持，但为将来扩展预留）
+      ...(bookDetails.sessionId && { session_id: bookDetails.sessionId })
     };
 
     const response = await fetch(`${API_BASE_URL}/v1/chat/completions`, {
