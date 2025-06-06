@@ -54,7 +54,7 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
       <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.6</p>
+      <p class="version">版本 1.0.7</p>
     </footer>
   </div>
 </template>
@@ -360,14 +360,23 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 强制浅色模式，防止系统深色模式干扰 */
+/* 全局深色模式防护 */
+@media (prefers-color-scheme: dark) {
+  .input-page, .input-page * {
+    color-scheme: light !important;
+  }
+}
 .input-page {
   max-width: 700px;
   margin: 20px auto;
   padding: 20px;
   font-family: sans-serif;
-  background-color: #f0f0f0;
+  background-color: #f0f0f0 !important;
   border: 2px solid #333;
   box-shadow: 4px 4px 0px #333;
+  color: #333 !important;
+  color-scheme: light !important; /* 强制浅色模式 */
 }
 
 .page-header {
@@ -375,10 +384,14 @@ onUnmounted(() => {
   margin-bottom: 30px;
 }
 
+.page-header p {
+  font-size: 1em; /* 减小两号字体 */
+}
+
 .logo {
   width: 200px;
   height: auto;
-  margin-bottom: 0px;
+  margin-bottom: -35px;
 }
 
 .header-image-title {
@@ -396,14 +409,15 @@ onUnmounted(() => {
   display: block;
   margin-bottom: 8px;
   font-weight: bold;
-  color: #333;
+  color: #333 !important;
 }
 
 .form-group textarea {
   width: calc(100% - 20px);
   padding: 10px;
   border: 2px solid #333;
-  background-color: #fff;
+  background-color: #fff !important;
+  color: #333 !important;
   font-size: 1em;
   box-sizing: border-box;
   min-height: 100px;
@@ -412,8 +426,8 @@ onUnmounted(() => {
 
 .form-hint {
   display: block;
-  font-size: 0.9em;
-  color: #555;
+  font-size: 0.9em; /* 减小两号字体 */
+  color: #555 !important;
   margin-top: 5px;
 }
 
@@ -448,12 +462,13 @@ onUnmounted(() => {
 }
 
 .loading-indicator {
-  background-color: #e0e0e0;
+  background-color: #e0e0e0 !important;
+  color: #333 !important;
 }
 
 .error-message {
-  background-color: #ffdddd;
-  color: #d8000c;
+  background-color: #ffdddd !important;
+  color: #d8000c !important;
 }
 
 .error-message button {
@@ -504,14 +519,14 @@ onUnmounted(() => {
 
 .progress-text {
   font-size: 0.95em;
-  color: #333;
+  color: #333 !important;
   letter-spacing: 1px;
 }
 
 .streaming-preview {
   margin-top: 20px;
   padding: 15px;
-  background-color: #f9f9f9;
+  background-color: #f9f9f9 !important;
   border: 2px solid #333;
   border-radius: 4px;
   box-shadow: 2px 2px 0px #333;
@@ -520,7 +535,7 @@ onUnmounted(() => {
 .streaming-preview h3 {
   margin: 0 0 10px 0;
   font-size: 1.1em;
-  color: #333;
+  color: #333 !important;
   font-weight: bold;
 }
 
@@ -529,7 +544,7 @@ onUnmounted(() => {
   overflow-y: auto;
   border: 1px solid #ddd;
   border-radius: 4px;
-  background-color: #fff;
+  background-color: #fff !important;
   padding: 10px;
 }
 
@@ -557,18 +572,16 @@ onUnmounted(() => {
   font-family: 'Courier New', Courier, monospace;
   font-size: 0.85em;
   line-height: 1.4;
-  color: #333;
+  color: #333 !important;
   margin: 0;
   padding: 0;
 }
-
-
 
 .page-footer {
   margin-top: 40px;
   text-align: center;
   font-size: 0.9em;
-  color: #555;
+  color: #555 !important;
   border-top: 2px solid #333;
   padding-top: 15px;
 }
@@ -599,7 +612,7 @@ onUnmounted(() => {
   
   .logo {
     width: 140px;
-    margin-bottom: 0;
+    margin-bottom: -35px; /* 负边距让下面的图片更靠近 */
     display: block;
     margin-left: auto;
     margin-right: auto;
@@ -608,13 +621,14 @@ onUnmounted(() => {
   .header-image-title {
     max-width: 70vw;
     margin-bottom: 6px;
+    margin-top: 0; /* 确保没有上边距 */
     display: block;
     margin-left: auto;
     margin-right: auto;
   }
   
   .page-header p {
-    font-size: 1em;
+    font-size: 0.85em; /* 减小两号字体 */
     margin-bottom: 2px;
   }
   
@@ -629,14 +643,14 @@ onUnmounted(() => {
   
   .form-group textarea {
     min-height: 80px;
-    font-size: 1.1em;
+    font-size: 0.8em;
     padding: 10px;
     width: 100%;
     box-sizing: border-box;
   }
   
   .form-hint {
-    font-size: 0.95em;
+    font-size: 0.75em; /* 减小两号字体，与桌面版保持一致 */
     margin-top: 2px;
     word-break: break-all;
   }
@@ -649,7 +663,7 @@ onUnmounted(() => {
   
   .loading-indicator, .error-message {
     padding: 8px;
-    font-size: 1em;
+    font-size: 0.85em;
   }
   
   .page-footer {
@@ -660,6 +674,18 @@ onUnmounted(() => {
   
   .page-footer p {
     margin-bottom: 2px;
+  }
+  
+  .page-footer .version {
+    margin-bottom: 15px; /* 给版本号添加更多底部间距 */
+  }
+  
+  .streaming-text-display {
+    font-size: 0.6em; /* 移动端专用设置 */
+  }
+  
+  .progress-text {
+    font-size: 0.8em; /* 当前继承桌面端0.95em，可以设为更小 */
   }
 }
 </style> 

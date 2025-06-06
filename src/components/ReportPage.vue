@@ -189,13 +189,22 @@ const shareReport = () => {
 </script>
 
 <style scoped>
+/* 强制浅色模式，防止系统深色模式干扰 */
+/* 全局深色模式防护 */
+@media (prefers-color-scheme: dark) {
+  .report-page, .report-page * {
+    color-scheme: light !important;
+  }
+}
 .report-page {
   max-width: 900px;
   margin: 20px auto;
   padding: 20px;
   font-family: sans-serif; /* 稍后替换为像素字体 */
-  background-color: #f9f9f9;
+  background-color: #f9f9f9 !important;
   border: 2px solid #333;
+  color: #333 !important;
+  color-scheme: light !important; /* 强制浅色模式 */
 }
 
 .page-header {
@@ -211,7 +220,7 @@ const shareReport = () => {
     left: 0;
     top: 50%;
     transform: translateY(-50%);
-    color: #007bff;
+    color: #007bff !important;
     text-decoration: none;
     font-size: 0.85em;
 }
@@ -220,7 +229,7 @@ const shareReport = () => {
   text-align: center;
   margin-bottom: 25px;
   padding: 20px;
-  background-color: #fff;
+  background-color: #fff !important;
   border: 2px solid #333;
   box-shadow: 4px 4px 0px #333;
   border-radius: 0;
@@ -229,7 +238,7 @@ const shareReport = () => {
 .report-title h1 {
   margin: 0;
   font-size: 2.2em;
-  color: #333;
+  color: #333 !important;
   font-weight: bold;
   letter-spacing: 1px;
   text-shadow: 2px 2px 0px #ddd;
@@ -243,12 +252,13 @@ const shareReport = () => {
 .report-actions-top button, .report-actions-bottom button {
   margin: 5px;
   padding: 8px 12px;
-  background-color: #e0e0e0;
+  background-color: #e0e0e0 !important;
   border: 1px solid #333;
   cursor: pointer;
+  color: #333 !important;
 }
 .report-actions-top button:hover, .report-actions-bottom button:hover {
-  background-color: #d0d0d0;
+  background-color: #d0d0d0 !important;
 }
 
 .report-content-wrapper {
@@ -282,7 +292,7 @@ const shareReport = () => {
 }
 .table-of-contents li a {
   text-decoration: none;
-  color: #007bff;
+  color: #007bff !important;
   display: block;
   padding: 5px 0;
 }
@@ -308,7 +318,7 @@ const shareReport = () => {
 
 :deep(.report-body h1) { /* Subsequent H1s if any */
   font-size: 1.6em; /* Adjust relative to base contentStyle.fontSize */
-  color: #333333;
+  color: #333333 !important;
   margin-top: 1.5em;
   margin-bottom: 0.7em;
 }
@@ -348,7 +358,7 @@ const shareReport = () => {
   margin-left: 0;
   padding-left: 1.5em;
   border-left: 3px solid #ccc; /* Common blockquote style */
-  color: #555;
+  color: #555 !important;
   font-style: italic;
   margin-bottom: 1em;
 }
@@ -367,7 +377,8 @@ const shareReport = () => {
 :deep(.report-body code) {
   /* Inline code */
   font-family: 'Courier New', Courier, monospace;
-  background-color: #e0e0e0;
+  background-color: #e0e0e0 !important;
+  color: #333 !important;
   padding: 0.2em 0.4em;
   border-radius: 0;
   font-size: 0.9em;
@@ -387,7 +398,7 @@ const shareReport = () => {
 }
 
 :deep(.report-body a) {
-  color: #007bff; /* Standard link color, can be themed */
+  color: #007bff !important; /* Standard link color, can be themed */
   text-decoration: none;
 }
 :deep(.report-body a:hover) {
@@ -504,11 +515,21 @@ const shareReport = () => {
 }
 
 @media (max-width: 600px) {
+  /* 移动端时设置整个页面背景为灰色 */
+  html, body {
+    background-color: #f9f9f9 !important;
+  }
+  
   .report-page {
-    max-width: 100vw;
+    max-width: 100%;
+    width: 100%;
     padding: 8px;
     border: none;
     box-shadow: none;
+    margin: 0;
+    min-height: 100vh;
+    background-color: #f9f9f9 !important;
+    box-sizing: border-box;
   }
   .page-header {
     padding-bottom: 4px;
@@ -519,6 +540,8 @@ const shareReport = () => {
     padding: 15px 10px;
     border-width: 1px;
     box-shadow: 2px 2px 0px #333;
+    width: 100%;
+    box-sizing: border-box;
   }
   .report-title h1 {
     font-size: 1.6em;
@@ -551,6 +574,8 @@ const shareReport = () => {
     flex-direction: column !important;
     gap: 8px;
     padding: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
   .table-of-contents {
     flex: none;
@@ -559,6 +584,7 @@ const shareReport = () => {
     border-bottom: 1px solid #ddd;
     padding-right: 0;
     margin-bottom: 10px;
+    box-sizing: border-box;
   }
   .table-of-contents h2 {
     font-size: 1.1em;
@@ -570,6 +596,10 @@ const shareReport = () => {
   .report-body {
     padding: 0;
     font-size: 1em;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
   .visualizations-sidebar {
     flex: none;
@@ -586,6 +616,23 @@ const shareReport = () => {
     font-size: 0.85em;
     padding-top: 8px;
   }
+  
+  /* 移动端内容防溢出 */
+  :deep(.report-body *) {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  :deep(.report-body pre) {
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  
+  :deep(.report-body table) {
+    width: 100%;
+    table-layout: fixed;
+  }
 }
 
 @media (max-width: 350px) {
@@ -600,6 +647,25 @@ const shareReport = () => {
   .report-title h1 {
     font-size: 1.4em;
     letter-spacing: 0.3px;
+  }
+}
+</style>
+
+<!-- 移动端全局背景色设置（不受scoped限制） -->
+<style>
+@media (max-width: 600px) {
+  html, body {
+    background-color: #f9f9f9 !important;
+    overflow-x: hidden;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  
+  #app {
+    background-color: #f9f9f9 !important;
+    width: 100%;
+    overflow-x: hidden;
   }
 }
 </style> 
