@@ -1,2 +1,2 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.123.37:3000';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://booktok-backend.onrender.com';
 export const API_KEY = import.meta.env.VITE_API_KEY || 'booktok-frontend-key'; // This key is for authenticating frontend to new-api

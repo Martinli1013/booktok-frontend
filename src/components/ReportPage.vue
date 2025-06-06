@@ -4,6 +4,10 @@
        <a href="/" class="back-link">&lt; 返回首页</a>
     </header>
 
+    <div class="report-title">
+      <h1>{{ bookTitle }}</h1>
+    </div>
+
     <div class="report-actions-top">
       <button @click="adjustFontSize('increase')">字体增大</button>
       <button @click="adjustFontSize('decrease')">字体减小</button>
@@ -58,9 +62,8 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { marked } from 'marked';
 
-// const reportTitle = ref(''); // Removed as title is handled by Markdown content
 const reportHtml = ref('');
-// const bookInfoForDisplay = ref(''); // Removed as it was unused
+const bookTitle = ref(''); // 书名标题
 
 // UI states (can keep these for styling)
 const isLoadingReport = ref(true); // Will set to false once data is processed
@@ -83,6 +86,9 @@ onMounted(() => {
   isLoadingReport.value = true;
   const reportId = route.params.reportId;
   const bookName = route.query.bookName || '未知书籍';
+  
+  // 设置书名标题
+  bookTitle.value = bookName;
 
   console.log('ReportPage loaded for reportId:', reportId, 'Book Name:', bookName);
 
@@ -210,6 +216,25 @@ const shareReport = () => {
     font-size: 0.85em;
 }
 
+.report-title {
+  text-align: center;
+  margin-bottom: 25px;
+  padding: 20px;
+  background-color: #fff;
+  border: 2px solid #333;
+  box-shadow: 4px 4px 0px #333;
+  border-radius: 0;
+}
+
+.report-title h1 {
+  margin: 0;
+  font-size: 2.2em;
+  color: #333;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 0px #ddd;
+  font-family: sans-serif;
+}
 
 .report-actions-top, .report-actions-bottom {
   margin-bottom: 20px;
@@ -489,6 +514,18 @@ const shareReport = () => {
     padding-bottom: 4px;
     min-height: 1.5em;
   }
+  .report-title {
+    margin-bottom: 15px;
+    padding: 15px 10px;
+    border-width: 1px;
+    box-shadow: 2px 2px 0px #333;
+  }
+  .report-title h1 {
+    font-size: 1.6em;
+    letter-spacing: 0.5px;
+    text-shadow: 1px 1px 0px #ddd;
+    line-height: 1.3;
+  }
   .report-actions-top {
     display: flex;
     flex-wrap: nowrap;
@@ -556,6 +593,13 @@ const shareReport = () => {
     font-size: 0.6em;
     height: 20px;
     padding: 3px 0;
+  }
+  .report-title {
+    padding: 12px 8px;
+  }
+  .report-title h1 {
+    font-size: 1.4em;
+    letter-spacing: 0.3px;
   }
 }
 </style> 
