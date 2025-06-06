@@ -376,7 +376,7 @@ onUnmounted(() => {
 }
 
 .logo {
-  width: 150px;
+  width: 200px;
   height: auto;
   margin-bottom: 0px;
 }
@@ -598,7 +598,7 @@ onUnmounted(() => {
   }
   
   .logo {
-    width: 110px;
+    width: 140px;
     margin-bottom: 0;
     display: block;
     margin-left: auto;
