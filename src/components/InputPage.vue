@@ -103,7 +103,7 @@
       </div>
 
       <!-- 调试信息 (仅在开发环境显示) -->
-      <div v-if="import.meta.env.DEV && isLoading" class="debug-info">
+      <div v-if="isDev && isLoading" class="debug-info">
         <small>
           调试: isLoading={{ isLoading }}, isReconnecting={{ isReconnecting }}, 
           connectionRetries={{ connectionRetries }}, showWarning={{ showVisibilityWarning }}, 
@@ -161,6 +161,9 @@ const CONFIG = {
 
 // 计算属性
 const currentYear = computed(() => new Date().getFullYear());
+
+// 开发环境检测
+const isDev = computed(() => import.meta.env.DEV);
 
 const progressMessage = computed(() => {
   if (isReconnecting.value) {
