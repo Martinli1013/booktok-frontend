@@ -101,12 +101,21 @@
           </button>
         </div>
       </div>
+
+      <!-- 调试信息 (仅在开发环境显示) -->
+      <div v-if="import.meta.env.DEV && isLoading" class="debug-info">
+        <small>
+          调试: isLoading={{ isLoading }}, isReconnecting={{ isReconnecting }}, 
+          connectionRetries={{ connectionRetries }}, showWarning={{ showVisibilityWarning }}, 
+          isVisible={{ isPageVisible }}
+        </small>
+      </div>
     </form>
 
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
       <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.11</p>
+      <p class="version">版本 1.0.12</p>
     </footer>
   </div>
 </template>
@@ -186,17 +195,21 @@ const handleVisibilityChange = () => {
   
   if (!isPageVisible.value) {
     // 页面隐藏时，只显示警告，不做其他操作
-    showVisibilityWarning.value = true;
-    console.log('检测到页面隐藏，显示警告');
+    if (!showVisibilityWarning.value) {
+      showVisibilityWarning.value = true;
+      console.log('检测到页面隐藏，显示警告');
+    }
   } else if (wasVisible === false && isPageVisible.value) {
     // 页面从隐藏变为可见
-    showVisibilityWarning.value = false;
     console.log('页面重新可见');
     
-    // 只有在确实有连接问题时才尝试重连
+    // 只有在确实有连接问题且没有在重连时才尝试重连
     if (connectionRetries.value > 0 && !isReconnecting.value) {
       console.log('检测到之前有连接问题，尝试恢复连接');
       setTimeout(() => attemptReconnection(), 1000); // 延迟1秒再重连
+    } else if (connectionRetries.value === 0) {
+      // 如果没有连接问题，直接清除警告
+      showVisibilityWarning.value = false;
     }
   }
 };
@@ -243,11 +256,13 @@ const attemptReconnection = async () => {
     // 再次检查状态
     if (!isLoading.value || !isPageVisible.value) {
       console.log('状态已变化，取消重连');
+      isReconnecting.value = false;
       return;
     }
     
     // 重新发起请求，从上次位置继续
     await continueFromLastPosition();
+    // 注意：重连状态在continueFromLastPosition中清理
     
   } catch (err) {
     console.error('重连失败:', err);
@@ -258,15 +273,15 @@ const attemptReconnection = async () => {
     } else {
       // 继续尝试重连，但增加延迟
       console.log(`将在${CONFIG.RETRY_DELAY * connectionRetries.value}ms后再次尝试重连`);
+      isReconnecting.value = false; // 先清理重连状态
       setTimeout(() => {
         if (isLoading.value && isPageVisible.value) {
           attemptReconnection();
         }
       }, CONFIG.RETRY_DELAY * connectionRetries.value);
     }
-  } finally {
-    isReconnecting.value = false;
   }
+  // 注意：移除了finally块，状态清理在具体的分支中处理
 };
 
 // 从上次位置继续 - 添加更严格的状态检查
@@ -291,6 +306,12 @@ const continueFromLastPosition = async () => {
     }
     
     currentReader.value = response.body.getReader();
+    
+    // 重连成功，立即清理重连状态
+    console.log('重连成功，清理重连状态');
+    isReconnecting.value = false;
+    showVisibilityWarning.value = false;
+    
     await processStream(currentReader.value);
     
   } catch (err) {
@@ -526,6 +547,7 @@ const processStream = async (reader) => {
                     console.log('成功接收数据，重置重试计数器');
                     connectionRetries.value = 0;
                     showVisibilityWarning.value = false;
+                    isReconnecting.value = false; // 确保重连状态也被清除
                   }
                 }
               } catch (e) {
@@ -696,6 +718,24 @@ onMounted(() => {
   // 添加网络状态监听
   window.addEventListener('online', handleOnlineStatusChange);
   window.addEventListener('offline', handleOnlineStatusChange);
+  
+  // 添加全局错误处理，防止白屏
+  window.addEventListener('error', (event) => {
+    console.error('全局错误:', event.error);
+    if (isLoading.value) {
+      error.value = '页面出现异常，请刷新重试';
+      cleanup();
+    }
+  });
+  
+  // 添加Promise未处理错误监听
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('未处理的Promise错误:', event.reason);
+    if (isLoading.value) {
+      error.value = '连接异常，请刷新重试';
+      cleanup();
+    }
+  });
   
   console.log('页面可见性和网络状态监听已启动');
 });
@@ -1186,5 +1226,18 @@ onUnmounted(() => {
   margin-bottom: 5px;
   text-align: left;
   font-size: 0.85em;
+}
+
+/* 调试信息样式 */
+.debug-info {
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #f0f8ff !important;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.75em;
+  color: #666 !important;
+  word-break: break-all;
 }
 </style> 
