@@ -60,22 +60,40 @@
           <div class="progress-text">已完成 {{ Math.round(progress) }}% - 已用时 {{ formatTime(elapsedTime) }}</div>
         </div>
         
-        <!-- 页面可见性警告 -->
-        <div v-if="showVisibilityWarning" class="visibility-warning">
-          <div class="warning-icon">⚠️</div>
-          <div class="warning-content">
-            <h4>检测到页面切换</h4>
-            <p>为确保最佳体验，建议保持页面在前台。</p>
-            <p v-if="!navigator.onLine">网络连接已断开，请检查网络连接。</p>
-            <p v-else-if="isReconnecting">正在尝试重新连接... ({{ connectionRetries }}/{{ maxRetries }})</p>
-            <p v-else>返回页面时我们会自动恢复连接。</p>
+        <!-- 状态警告 -->
+        <div v-if="showVisibilityWarning || isReconnecting || suspendDetected" class="warning-section">
+          <!-- 页面切换警告 -->
+          <div v-if="showVisibilityWarning && !suspendDetected" class="warning-item">
+            <svg class="warning-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <div class="warning-content">
+              <div class="warning-title">{{ isMobileDevice ? '检测到页面切换' : '页面暂时不可见' }}</div>
+              <div class="warning-text">
+                {{ isMobileDevice ? '内容正在后台继续生成，请保持应用运行' : '报告正在后台生成，请回到此页面' }}
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <!-- 重连状态 -->
-        <div v-if="isReconnecting" class="reconnection-status">
-          <div class="reconnect-spinner"></div>
-          <p>连接中断，正在重新连接... (尝试 {{ connectionRetries }}/{{ maxRetries }})</p>
+          
+          <!-- 重连状态 -->
+          <div v-if="isReconnecting" class="warning-item reconnecting">
+            <div class="spinner"></div>
+            <div class="warning-content">
+              <div class="warning-title">正在恢复连接</div>
+              <div class="warning-text">尝试 {{ connectionRetries }}/{{ maxRetries }}</div>
+            </div>
+          </div>
+          
+          <!-- 移动端休眠检测警告 -->
+          <div v-if="suspendDetected && isMobileDevice" class="warning-item critical">
+            <svg class="warning-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <div class="warning-content">
+              <div class="warning-title">检测到手机休眠</div>
+              <div class="warning-text">连接可能已中断，需要手动恢复</div>
+            </div>
+          </div>
         </div>
         
         <div v-if="reportContent" class="streaming-preview">
@@ -86,18 +104,40 @@
         </div>
       </div>
 
-      <div v-if="error" class="error-message">
-        <p><strong>处理请求时遇到问题：</strong></p>
-        <p>{{ error }}</p>
-        <div class="error-actions">
-          <button @click="resetForm" type="button" class="retry-btn">知道了，重试</button>
-          <button 
-            v-if="reportContent.length > 500" 
-            @click="emergencyRecover" 
-            type="button" 
-            class="recover-btn"
-          >
-            紧急恢复 (已生成{{ Math.floor(reportContent.length / 100) }}00+字)
+      <!-- 错误信息显示 -->
+      <div v-if="error" class="error-section">
+        <div class="error-message">
+          <svg class="error-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+          <span>{{ error }}</span>
+        </div>
+        
+        <!-- 移动端休眠恢复选项 -->
+        <div v-if="suspendDetected && isMobileDevice" class="mobile-recovery-actions">
+          <button @click="forceRecovery" class="recovery-btn primary">
+            <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+            </svg>
+            尝试恢复连接
+          </button>
+          
+          <button v-if="reportContent.length > 500" @click="emergencyRecover" class="recovery-btn secondary">
+            <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+              <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 001 1h6a1 1 0 001-1V3a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm2.5 4a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd" />
+            </svg>
+            查看已生成内容
+          </button>
+        </div>
+        
+        <!-- 一般错误恢复选项 -->
+        <div v-else-if="error && !isLoading" class="error-actions">
+          <button v-if="reportContent.length > 500" @click="emergencyRecover" class="recovery-btn">
+            查看已生成内容
+          </button>
+          <button @click="resetForm" class="recovery-btn secondary">
+            重新开始
           </button>
         </div>
       </div>
@@ -150,13 +190,19 @@ const lastKnownPosition = ref(0);
 const sessionId = ref(null);
 const showVisibilityWarning = ref(false);
 
+// 移动端休眠检测
+const lastActiveTime = ref(Date.now());
+const isMobileDevice = ref(false);
+const suspendDetected = ref(false);
+
 // 配置常量
 const CONFIG = {
   TARGET_LENGTH: 15000,
   INITIAL_DURATION: 25000,
   STREAMING_DURATION: 240000,
   FINAL_DURATION: 3000,
-  RETRY_DELAY: 2000
+  RETRY_DELAY: 2000,
+  SUSPEND_THRESHOLD: 60000 // 60秒无活动视为休眠
 };
 
 // 计算属性
@@ -186,32 +232,106 @@ const formatTime = (ms) => {
   return minutes > 0 ? `${minutes}分${seconds % 60}秒` : `${seconds}秒`;
 };
 
+// 移动端检测
+const detectMobileDevice = () => {
+  const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent) || 
+         ('ontouchstart' in window) || 
+         (navigator.maxTouchPoints > 1);
+};
+
+// 休眠检测和恢复
+const checkForSuspend = () => {
+  const now = Date.now();
+  const timeDiff = now - lastActiveTime.value;
+  
+  if (isLoading.value && timeDiff > CONFIG.SUSPEND_THRESHOLD) {
+    console.warn('检测到可能的休眠/暂停，时间差:', timeDiff, 'ms');
+    suspendDetected.value = true;
+    
+    // 如果检测到休眠，显示恢复选项
+    if (isMobileDevice.value) {
+      showMobileSuspendRecovery();
+    }
+  }
+  
+  lastActiveTime.value = now;
+};
+
+// 移动端休眠恢复
+const showMobileSuspendRecovery = () => {
+  console.log('显示移动端休眠恢复选项');
+  error.value = '检测到手机休眠，连接可能已中断。点击下方按钮恢复或查看已生成内容。';
+  
+  // 清理可能损坏的连接
+  if (currentReader.value) {
+    try {
+      currentReader.value.releaseLock();
+      currentReader.value = null;
+    } catch (e) {
+      console.warn('清理休眠后的连接失败:', e);
+    }
+  }
+  
+  // 标记需要用户干预
+  isReconnecting.value = false;
+  showVisibilityWarning.value = false;
+};
+
+// 强制恢复连接
+const forceRecovery = async () => {
+  console.log('用户选择强制恢复连接');
+  
+  // 重置所有状态
+  error.value = null;
+  suspendDetected.value = false;
+  connectionRetries.value = 0;
+  lastActiveTime.value = Date.now();
+  
+  // 检查是否有足够的内容进行紧急恢复
+  if (reportContent.value.length > 500) {
+    const shouldContinue = confirm('检测到已生成部分内容。\n\n选择"确定"继续生成剩余部分\n选择"取消"查看已生成内容');
+    
+    if (!shouldContinue) {
+      emergencyRecover();
+      return;
+    }
+  }
+  
+  // 尝试恢复连接
+  try {
+    await attemptReconnection();
+  } catch (err) {
+    console.error('强制恢复失败:', err);
+    error.value = '恢复失败，建议查看已生成内容或重新开始';
+  }
+};
+
 // 页面可见性管理
 const handleVisibilityChange = () => {
-  const wasVisible = isPageVisible.value;
+  console.log('页面可见性变化:', document.hidden ? '隐藏' : '显示');
   isPageVisible.value = !document.hidden;
   
-  console.log('页面可见性变化:', isPageVisible.value ? '可见' : '隐藏');
-  
-  // 只在页面正在加载时处理可见性变化
-  if (!isLoading.value) return;
-  
-  if (!isPageVisible.value) {
-    // 页面隐藏时，只显示警告，不做其他操作
-    if (!showVisibilityWarning.value) {
-      showVisibilityWarning.value = true;
-      console.log('检测到页面隐藏，显示警告');
-    }
-  } else if (wasVisible === false && isPageVisible.value) {
-    // 页面从隐藏变为可见
-    console.log('页面重新可见');
+  if (document.hidden) {
+    // 页面隐藏时记录时间
+    lastActiveTime.value = Date.now();
     
-    // 只有在确实有连接问题且没有在重连时才尝试重连
-    if (connectionRetries.value > 0 && !isReconnecting.value) {
-      console.log('检测到之前有连接问题，尝试恢复连接');
-      setTimeout(() => attemptReconnection(), 1000); // 延迟1秒再重连
-    } else if (connectionRetries.value === 0) {
-      // 如果没有连接问题，直接清除警告
+    // 显示警告（如果正在生成内容）
+    if (isLoading.value) {
+      showVisibilityWarning.value = true;
+    }
+  } else {
+    // 页面显示时检查是否休眠过
+    checkForSuspend();
+    
+    // 如果正在加载且有连接问题，尝试恢复
+    if (isLoading.value && currentReader.value === null && !isReconnecting.value) {
+      console.log('页面恢复显示，检测到连接问题，尝试自动恢复');
+      attemptReconnection();
+    }
+    
+    // 清除警告
+    if (showVisibilityWarning.value && !suspendDetected.value) {
       showVisibilityWarning.value = false;
     }
   }
@@ -535,7 +655,16 @@ const processStream = async (reader) => {
               try {
                 const parsed = JSON.parse(jsonData);
                 if (parsed.choices?.[0]?.delta?.content) {
-                  reportContent.value += parsed.choices[0].delta.content;
+                  const content = parsed.choices[0].delta.content;
+                  reportContent.value += content;
+                  
+                  // 移动端每生成500字符保存一次状态
+                  if (isMobileDevice.value && reportContent.value.length % 500 < content.length) {
+                    saveState();
+                  }
+                  
+                  // 更新已知位置
+                  lastKnownPosition.value = reportContent.value.length;
                   
                   // 更新进度（节流）
                   const currentTime = Date.now() - startTime.value;
@@ -625,6 +754,15 @@ const finalizeReport = () => {
     isLoading.value = false;
     stopTimeTracking();
     
+    // 清理会话状态（成功完成）
+    if (sessionId.value) {
+      try {
+        localStorage.removeItem('booktok_session_' + sessionId.value);
+      } catch (e) {
+        console.warn('清理会话状态失败:', e);
+      }
+    }
+    
     router.push({
       name: 'ReportPage',
       params: { reportId },
@@ -662,7 +800,17 @@ const cleanup = () => {
   connectionRetries.value = 0;
   isReconnecting.value = false;
   showVisibilityWarning.value = false;
-  sessionId.value = null;
+  suspendDetected.value = false;
+  
+  // 清理保存的状态
+  if (sessionId.value) {
+    try {
+      localStorage.removeItem('booktok_session_' + sessionId.value);
+    } catch (e) {
+      console.warn('清理保存状态失败:', e);
+    }
+    sessionId.value = null;
+  }
 };
 
 // 重置表单
@@ -711,50 +859,209 @@ const emergencyRecover = () => {
   }
 };
 
+// 状态保存和恢复
+const saveState = () => {
+  if (!sessionId.value) return;
+  
+  const state = {
+    sessionId: sessionId.value,
+    bookQuery: bookQuery.value,
+    reportContent: reportContent.value,
+    isLoading: isLoading.value,
+    lastActiveTime: lastActiveTime.value,
+    timestamp: Date.now(),
+    isMobile: isMobileDevice.value,
+    progress: {
+      charactersGenerated: reportContent.value.length,
+      estimatedTotal: CONFIG.TARGET_LENGTH
+    }
+  };
+  
+  try {
+    localStorage.setItem('booktok_session_' + sessionId.value, JSON.stringify(state));
+    console.log('状态已保存:', state);
+  } catch (e) {
+    console.warn('状态保存失败:', e);
+  }
+};
+
+const loadState = () => {
+  // 检查是否有未完成的会话
+  const keys = Object.keys(localStorage).filter(key => key.startsWith('booktok_session_'));
+  
+  if (keys.length === 0) return false;
+  
+  // 找到最新的会话
+  let latestSession = null;
+  let latestTime = 0;
+  
+  keys.forEach(key => {
+    try {
+      const state = JSON.parse(localStorage.getItem(key));
+      if (state.timestamp > latestTime) {
+        latestTime = state.timestamp;
+        latestSession = state;
+      }
+    } catch (e) {
+      console.warn('加载状态失败:', e);
+      localStorage.removeItem(key);
+    }
+  });
+  
+  if (!latestSession) return false;
+  
+  // 检查会话是否太旧（超过1小时）
+  const sessionAge = Date.now() - latestSession.timestamp;
+  if (sessionAge > 3600000) { // 1小时
+    console.log('会话过期，清理旧状态');
+    keys.forEach(key => localStorage.removeItem(key));
+    return false;
+  }
+  
+  // 恢复状态
+  sessionId.value = latestSession.sessionId;
+  bookQuery.value = latestSession.bookQuery || '';
+  reportContent.value = latestSession.reportContent || '';
+  lastActiveTime.value = latestSession.lastActiveTime || Date.now();
+  
+  console.log('状态已恢复:', latestSession);
+  
+  // 如果是移动端且有未完成的内容，提示用户
+  if (latestSession.isMobile && latestSession.isLoading && latestSession.reportContent) {
+    const shouldContinue = confirm(
+      `检测到未完成的报告生成任务：\n\n` +
+      `书名：${latestSession.bookQuery}\n` +
+      `已生成：${latestSession.reportContent.length}字\n\n` +
+      `是否继续生成？`
+    );
+    
+    if (shouldContinue) {
+      isLoading.value = true;
+      continueFromLastPosition();
+    } else {
+      // 用户选择不继续，显示已生成的内容
+      isLoading.value = false;
+      if (latestSession.reportContent.length > 500) {
+        isComplete.value = true;
+      }
+    }
+  }
+  
+  return true;
+};
+
 // 生命周期
 onMounted(() => {
-  bookQueryInput.value?.focus();
+  console.log('组件已挂载，初始化状态');
   
-  // 添加页面可见性监听
+  // 检测移动设备
+  isMobileDevice.value = detectMobileDevice();
+  console.log('移动设备检测:', isMobileDevice.value);
+  
+  // 初始化时间记录
+  lastActiveTime.value = Date.now();
+  
+  // 初始化会话ID
+  if (!sessionId.value) {
+    sessionId.value = Date.now().toString();
+  }
+  
+  // 尝试恢复之前的状态
+  const stateLoaded = loadState();
+  if (!stateLoaded) {
+    console.log('没有找到可恢复的状态，开始新会话');
+  }
+  
+  // 监听页面可见性变化
   document.addEventListener('visibilitychange', handleVisibilityChange);
   
-  // 添加网络状态监听
-  window.addEventListener('online', handleOnlineStatusChange);
-  window.addEventListener('offline', handleOnlineStatusChange);
+  // 移动端特殊监听
+  if (isMobileDevice.value) {
+    // 监听触摸事件来更新活动时间
+    const updateActiveTime = () => {
+      lastActiveTime.value = Date.now();
+      // 触摸时保存状态
+      if (isLoading.value) {
+        saveState();
+      }
+    };
+    
+    window.addEventListener('touchstart', updateActiveTime, { passive: true });
+    window.addEventListener('touchend', updateActiveTime, { passive: true });
+    
+    // 监听页面焦点变化
+    window.addEventListener('focus', () => {
+      console.log('移动端页面获得焦点');
+      checkForSuspend();
+    });
+    
+    window.addEventListener('blur', () => {
+      console.log('移动端页面失去焦点');
+      lastActiveTime.value = Date.now();
+      // 失去焦点时保存状态
+      if (isLoading.value) {
+        saveState();
+      }
+    });
+    
+    // 定期检查是否休眠（仅在生成内容时）
+    const suspendCheckInterval = setInterval(() => {
+      if (isLoading.value && isPageVisible.value) {
+        checkForSuspend();
+        // 定期保存状态
+        saveState();
+      }
+    }, 30000); // 每30秒检查一次
+    
+    // 保存清理函数
+    onUnmounted(() => {
+      clearInterval(suspendCheckInterval);
+    });
+  }
   
-  // 添加全局错误处理，防止白屏
-  window.addEventListener('error', (event) => {
-    console.error('全局错误:', event.error);
-    if (isLoading.value) {
-      error.value = '页面出现异常，请刷新重试';
-      cleanup();
+  // 监听在线状态
+  window.addEventListener('online', () => {
+    console.log('网络连接恢复');
+    if (isLoading.value && suspendDetected.value) {
+      console.log('网络恢复，提示用户重连');
+      error.value = '网络连接已恢复，点击下方按钮继续生成';
     }
   });
   
-  // 添加Promise未处理错误监听
-  window.addEventListener('unhandledrejection', (event) => {
-    console.error('未处理的Promise错误:', event.reason);
+  window.addEventListener('offline', () => {
+    console.log('网络连接断开');
     if (isLoading.value) {
-      error.value = '连接异常，请刷新重试';
-      cleanup();
+      error.value = '网络连接已断开，请检查网络后重试';
+      // 离线时保存状态
+      saveState();
     }
   });
-  
-  console.log('页面可见性和网络状态监听已启动');
 });
 
 onUnmounted(() => {
-  cleanup();
-  if (scrollTimeout) {
-    clearTimeout(scrollTimeout);
+  // 清理事件监听器
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  
+  // 清理移动端监听器
+  if (isMobileDevice.value) {
+    const updateActiveTime = () => {
+      lastActiveTime.value = Date.now();
+    };
+    
+    window.removeEventListener('touchstart', updateActiveTime);
+    window.removeEventListener('touchend', updateActiveTime);
   }
   
-  // 移除事件监听器
-  document.removeEventListener('visibilitychange', handleVisibilityChange);
-  window.removeEventListener('online', handleOnlineStatusChange);
-  window.removeEventListener('offline', handleOnlineStatusChange);
+  // 清理连接
+  if (currentReader.value) {
+    try {
+      currentReader.value.releaseLock();
+    } catch (e) {
+      console.warn('清理连接失败:', e);
+    }
+  }
   
-  console.log('页面可见性和网络状态监听已清理');
+  console.log('组件已卸载，清理完成');
 });
 </script>
 
@@ -1242,5 +1549,149 @@ onUnmounted(() => {
   font-size: 0.75em;
   color: #666 !important;
   word-break: break-all;
+}
+
+/* 错误处理相关样式 */
+.error-section {
+  margin: 20px 0;
+  padding: 16px;
+  background: #fef7f7;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #721c24;
+  margin-bottom: 16px;
+}
+
+.error-icon {
+  width: 20px;
+  height: 20px;
+  color: #dc3545;
+  flex-shrink: 0;
+}
+
+.mobile-recovery-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.recovery-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recovery-btn.primary {
+  background: #007bff;
+  color: white;
+}
+
+.recovery-btn.primary:hover {
+  background: #0056b3;
+}
+
+.recovery-btn.secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.recovery-btn.secondary:hover {
+  background: #545b62;
+}
+
+.recovery-btn:not(.primary):not(.secondary) {
+  background: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
+}
+
+.recovery-btn:not(.primary):not(.secondary):hover {
+  background: #e9ecef;
+}
+
+.btn-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* 状态警告样式 */
+.warning-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f9f9f9 !important;
+  border: 2px solid #333;
+  border-radius: 4px;
+  box-shadow: 2px 2px 0px #333;
+}
+
+.warning-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.warning-item .warning-icon {
+  font-size: 1.5em;
+  margin-top: 2px;
+}
+
+.warning-item .warning-content {
+  flex: 1;
+}
+
+.warning-item .warning-title {
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.warning-item .warning-text {
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+
+.warning-item.reconnecting .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #333;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.warning-item.critical {
+  color: #d8000c;
+  background-color: #ffdddd;
+  border-color: #ffc1c1;
+}
+
+.warning-item.critical .warning-icon {
+  color: #d8000c;
 }
 </style> 
