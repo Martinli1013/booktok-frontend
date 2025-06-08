@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Booktok - AI智能读书助手</title>
+    
+    <!-- 图片预加载 -->
+    <link rel="preload" href="/images/booktok-logo.png" as="image" fetchpriority="high">
+    <link rel="preload" href="/images/pixel-header.png" as="image" fetchpriority="high">
+    
+    <!-- DNS预连接 -->
+    <link rel="dns-prefetch" href="//booktok-backend.onrender.com">
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
