@@ -72,7 +72,7 @@
         </div>
       </div>
 
-      <!-- 错误信息 -->
+      <!-- 错误处理和恢复选项 -->
       <div v-if="error" class="error-section">
         <div class="error-message">
           <svg class="error-icon" viewBox="0 0 20 20" fill="currentColor">
@@ -81,8 +81,42 @@
           <span>{{ error }}</span>
         </div>
         
-        <!-- 错误恢复选项 -->
-        <div v-if="error && !isLoading" class="error-actions">
+        <!-- 断点续传恢复选项 -->
+        <div v-if="savedProgress && !isLoading" class="recovery-options">
+          <div class="recovery-info">
+            <p>检测到未完成的报告生成任务</p>
+            <p class="progress-details">
+              书名: {{ savedProgress.bookName }} | 
+              已生成: {{ savedProgress.currentContent.length }}字 | 
+              进度: {{ Math.round(savedProgress.estimatedProgress) }}%
+            </p>
+          </div>
+          
+          <div class="recovery-actions">
+            <button @click="resumeFromProgress" class="recovery-btn primary">
+              <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+              </svg>
+              继续生成
+            </button>
+            <button @click="viewSavedContent" class="recovery-btn secondary">
+              <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd" />
+              </svg>
+              查看已生成
+            </button>
+            <button @click="clearSavedProgress" class="recovery-btn danger">
+              <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zM12 7a1 1 0 012 0v4a1 1 0 11-2 0V7z" clip-rule="evenodd" />
+              </svg>
+              重新开始
+            </button>
+          </div>
+        </div>
+        
+        <!-- 传统错误恢复选项 -->
+        <div v-else-if="error && !isLoading" class="error-actions">
           <button v-if="reportContent.length > 500" @click="emergencyRecover" class="recovery-btn">
             查看已生成内容
           </button>
@@ -107,7 +141,7 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
       <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.14</p>
+      <p class="version">版本 1.0.15</p>
     </footer>
   </div>
 </template>
@@ -126,6 +160,11 @@ const isLoading = ref(false);
 const error = ref(null);
 const reportContent = ref('');
 const previewContainer = ref(null);
+
+// 断点续传相关状态
+const savedProgress = ref(null);
+const currentSessionId = ref(null);
+const autoSaveInterval = ref(null);
 
 // 进度相关
 const progress = ref(0);
@@ -254,12 +293,176 @@ const stopTimeTracking = () => {
   }
 };
 
+// 断点续传管理
+const PROGRESS_KEY = 'booktok_progress';
+const AUTO_SAVE_INTERVAL = 3000; // 3秒自动保存一次
+
+// 保存进度状态
+const saveProgress = () => {
+  if (!currentSessionId.value || !bookQuery.value) return;
+  
+  const progressState = {
+    bookName: bookQuery.value,
+    sessionId: currentSessionId.value,
+    startTime: startTime.value,
+    currentContent: reportContent.value,
+    lastSaveTime: Date.now(),
+    estimatedProgress: progress.value,
+    contentLength: reportContent.value.length
+  };
+  
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progressState));
+    console.log(`进度已保存: ${progressState.contentLength}字, ${Math.round(progressState.estimatedProgress)}%`);
+  } catch (error) {
+    console.warn('保存进度失败:', error);
+  }
+};
+
+// 加载保存的进度
+const loadSavedProgress = () => {
+  try {
+    const saved = localStorage.getItem(PROGRESS_KEY);
+    if (saved) {
+      const progressState = JSON.parse(saved);
+      
+      // 检查是否在24小时内
+      const hoursSinceLastSave = (Date.now() - progressState.lastSaveTime) / (1000 * 60 * 60);
+      if (hoursSinceLastSave < 24 && progressState.contentLength > 200) {
+        savedProgress.value = progressState;
+        return progressState;
+      } else {
+        // 过期或内容太少，清理
+        localStorage.removeItem(PROGRESS_KEY);
+      }
+    }
+  } catch (error) {
+    console.warn('加载进度失败:', error);
+    localStorage.removeItem(PROGRESS_KEY);
+  }
+  return null;
+};
+
+// 清除保存的进度
+const clearSavedProgress = () => {
+  savedProgress.value = null;
+  localStorage.removeItem(PROGRESS_KEY);
+  resetForm();
+};
+
+// 从进度继续生成
+const resumeFromProgress = async () => {
+  if (!savedProgress.value) return;
+  
+  try {
+    // 恢复状态
+    bookQuery.value = savedProgress.value.bookName;
+    reportContent.value = savedProgress.value.currentContent;
+    progress.value = savedProgress.value.estimatedProgress;
+    currentSessionId.value = savedProgress.value.sessionId;
+    
+    // 清除错误状态
+    error.value = null;
+    isLoading.value = true;
+    
+    startTimeTracking();
+    startAutoSave();
+    
+    // 构建续传提示词
+    const continuePrompt = buildContinuePrompt(
+      savedProgress.value.bookName, 
+      savedProgress.value.currentContent
+    );
+    
+    // 发起续传请求
+    const response = await apiService.generateContinueReport({
+      bookQuery: savedProgress.value.bookName,
+      existingContent: savedProgress.value.currentContent,
+      continuePrompt: continuePrompt
+    });
+    
+    if (!response.body) {
+      throw new Error('无法获取响应流');
+    }
+
+    const reader = response.body.getReader();
+    await processStream(reader);
+    
+  } catch (err) {
+    console.error('断点续传失败:', err);
+    error.value = '续传失败: ' + (err.message || '请尝试重新开始');
+    cleanup();
+  }
+};
+
+// 构建续传提示词
+const buildContinuePrompt = (bookName, existingContent) => {
+  // 分析已生成内容的长度和结构
+  const contentLength = existingContent.length;
+  let continueInstruction = '';
+  
+  if (contentLength < 1000) {
+    continueInstruction = `请继续完成《${bookName}》的深度解读报告，从当前内容自然地继续写下去，直到完成全部约5000字的报告。`;
+  } else if (contentLength < 3000) {
+    continueInstruction = `请继续完成《${bookName}》的深度解读报告的剩余部分，保持与前文的连贯性，直到完成全部内容。`;
+  } else {
+    continueInstruction = `请完成《${bookName}》深度解读报告的收尾部分，确保报告完整并以合适的结语结束。`;
+  }
+  
+  return `以下是《${bookName}》深度解读报告的已生成部分：
+
+${existingContent}
+
+请${continueInstruction}
+
+要求：
+1. 与上述内容保持完全一致的写作风格和格式
+2. 不要重复已有内容
+3. 直接从需要继续的地方开始，无需重新介绍
+4. 确保整篇报告的完整性和连贯性
+5. 继续使用Markdown格式，保持章节结构清晰`;
+};
+
+// 查看已保存的内容
+const viewSavedContent = () => {
+  if (!savedProgress.value) return;
+  
+  const reportId = `resume-report-${Date.now()}`;
+  localStorage.setItem(reportId, savedProgress.value.currentContent);
+  
+  router.push({
+    name: 'ReportPage',
+    params: { reportId },
+    query: { 
+      bookName: savedProgress.value.bookName,
+      isPartial: true
+    }
+  });
+};
+
+// 开始自动保存
+const startAutoSave = () => {
+  stopAutoSave(); // 确保没有重复的定时器
+  autoSaveInterval.value = setInterval(saveProgress, AUTO_SAVE_INTERVAL);
+};
+
+// 停止自动保存
+const stopAutoSave = () => {
+  if (autoSaveInterval.value) {
+    clearInterval(autoSaveInterval.value);
+    autoSaveInterval.value = null;
+  }
+};
+
 // 主要生成函数
 const generateReport = async () => {
   if (!bookQuery.value.trim()) {
     error.value = '书名不能为空！';
     return;
   }
+  
+  // 生成新的会话ID
+  currentSessionId.value = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
   // 重置状态
   isLoading.value = true;
@@ -268,7 +471,11 @@ const generateReport = async () => {
   progress.value = 0;
   isAtBottom.value = true;
   
+  // 清除之前的保存进度（开始新任务）
+  clearSavedProgress();
+  
   startTimeTracking();
+  startAutoSave(); // 开始自动保存
   
   // 初始进度动画
   const animateInitial = () => {
@@ -282,7 +489,8 @@ const generateReport = async () => {
 
   try {
     const response = await apiService.generateReport({ 
-      bookQuery: bookQuery.value
+      bookQuery: bookQuery.value,
+      sessionId: currentSessionId.value // 传递会话ID
     });
     
     if (!response.body) {
@@ -429,10 +637,15 @@ const resetForm = () => {
 const cleanup = () => {
   isLoading.value = false;
   stopTimeTracking();
+  stopAutoSave(); // 停止自动保存
+  
   if (progressAnimationId) {
     cancelAnimationFrame(progressAnimationId);
     progressAnimationId = null;
   }
+  
+  // 清理会话ID
+  currentSessionId.value = null;
 };
 
 // 生命周期
@@ -441,10 +654,37 @@ onMounted(() => {
   if (bookQueryInput.value) {
     bookQueryInput.value.focus();
   }
+  
+  // 检查是否有保存的进度
+  const savedProgressData = loadSavedProgress();
+  if (savedProgressData) {
+    console.log('发现保存的进度:', savedProgressData);
+  }
 });
 
 onUnmounted(() => {
+  // 如果正在生成且有内容，保存进度
+  if (isLoading.value && reportContent.value.length > 200) {
+    saveProgress();
+  }
   cleanup();
+});
+
+// 页面可见性变化监听（处理页面切换）
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // 页面变为后台，保存当前进度
+    if (isLoading.value && reportContent.value.length > 200) {
+      saveProgress();
+      console.log('页面切换到后台，已保存进度');
+    }
+  } else {
+    // 页面变为前台，检查连接状态
+    if (isLoading.value && currentSessionId.value) {
+      console.log('页面回到前台，检查连接状态');
+      // 这里可以添加连接状态检查逻辑
+    }
+  }
 });
 </script>
 
@@ -961,5 +1201,147 @@ onUnmounted(() => {
 
 .recovery-btn.secondary:hover {
   background: #545b62;
+}
+
+/* 断点续传恢复选项样式 */
+.recovery-options {
+  margin-top: 15px;
+  padding: 20px;
+  background: #f8f9fa !important;
+  border: 2px solid #28a745;
+  border-radius: 8px;
+  color: #333 !important;
+}
+
+.recovery-info {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.recovery-info p {
+  margin: 5px 0;
+  color: #333 !important;
+}
+
+.progress-details {
+  font-size: 0.9em;
+  color: #666 !important;
+  font-family: 'Courier New', monospace;
+}
+
+.recovery-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.recovery-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px solid #333;
+  background: #f9f9f9 !important;
+  color: #333 !important;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  box-shadow: 2px 2px 0px #333;
+  text-decoration: none;
+  min-width: 120px;
+}
+
+.recovery-btn:hover {
+  background: #e9e9e9 !important;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px #333;
+}
+
+.recovery-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px #333;
+}
+
+.recovery-btn.primary {
+  background: #28a745 !important;
+  color: white !important;
+  border-color: #1e7e34;
+}
+
+.recovery-btn.primary:hover {
+  background: #218838 !important;
+}
+
+.recovery-btn.secondary {
+  background: #007bff !important;
+  color: white !important;
+  border-color: #0056b3;
+}
+
+.recovery-btn.secondary:hover {
+  background: #0069d9 !important;
+}
+
+.recovery-btn.danger {
+  background: #dc3545 !important;
+  color: white !important;
+  border-color: #bd2130;
+}
+
+.recovery-btn.danger:hover {
+  background: #c82333 !important;
+}
+
+.btn-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* 移动端适配 */
+@media (max-width: 600px) {
+  .recovery-options {
+    padding: 15px;
+    margin: 10px;
+  }
+  
+  .recovery-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .recovery-btn {
+    justify-content: center;
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .progress-details {
+    font-size: 0.8em;
+  }
+}
+
+/* 深色模式防护 */
+@media (prefers-color-scheme: dark) {
+  .recovery-options, .recovery-options * {
+    color-scheme: light !important;
+  }
+  
+  .recovery-options {
+    background: #f8f9fa !important;
+    color: #333 !important;
+  }
+  
+  .recovery-info p, .progress-details {
+    color: #333 !important;
+  }
+  
+  .recovery-btn {
+    background: #f9f9f9 !important;
+    color: #333 !important;
+  }
 }
 </style> 

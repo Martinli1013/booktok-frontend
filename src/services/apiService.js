@@ -31,7 +31,7 @@ export default {
 - 确保你分析的是指定书名的作品，不要生成关于其他书籍的内容。
 - 提供的内容必须真实准确，具有学术价值，不得编造虚假信息。
 - 如果在搜索结果中没有找到关于《${bookDetails.bookQuery}》的信息，千万不要根据有限的资料自行进行创作。
-- 不要给我进一步建议，也不需要为我提供任何其他价值。直接严格返回结果：“抱歉，我还没读过这本书…”即可。
+- 不要给我进一步建议，也不需要为我提供任何其他价值。直接严格返回结果："抱歉，我还没读过这本书…"即可。
 - 分析应该专业深入，适合对该作品有一定了解的读者。
 - 一次性输出全部内容，并确保整个文档的字数接近 5000 字
 - 严格以书名《${bookDetails.bookQuery}》为准，不要搞错了书籍。`;
@@ -69,6 +69,52 @@ export default {
 
     } catch (error) {
       console.error('API call failed:', error);
+      throw error;
+    }
+  },
+
+  // 断点续传生成报告
+  async generateContinueReport(continueDetails) {
+    console.log('Attempting to continue report generation with details:', {
+      bookQuery: continueDetails.bookQuery,
+      existingContentLength: continueDetails.existingContent?.length || 0
+    });
+    console.log('Using API Key:', API_KEY.substring(0, 10) + "..."); 
+    console.log('Using API Base URL:', API_BASE_URL);
+
+    const requestData = {
+      model: "deepseek-reasoner",
+      messages: [
+        {
+          role: "user",
+          content: continueDetails.continuePrompt
+        }
+      ],
+      stream: true
+    };
+
+    console.log('Continue request data prepared');
+
+    try {
+      // 使用网络管理器的fetchWithRetry方法
+      const response = await networkManager.fetchWithRetry(`${API_BASE_URL}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('Continue stream response received successfully');
+      return response;
+
+    } catch (error) {
+      console.error('Continue API call failed:', error);
       throw error;
     }
   },
