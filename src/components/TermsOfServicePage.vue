@@ -1,7 +1,7 @@
 <template>
   <div class="legal-page">
     <header class="page-header">
-      <a href="/" class="back-link">&lt; 返回首页</a>
+      <router-link to="/" class="back-link">&lt; 返回首页</router-link>
       <h1>服务条款</h1>
     </header>
     <div class="content">
@@ -11,7 +11,7 @@
       <p>欢迎使用 Booktok！这些服务条款（"条款"）管辖您对我们网站和服务的访问和使用。通过访问或使用服务，您同意受这些条款的约束。</p>
 
       <h3>1. 服务描述</h3>
-      <p>Booktok 提供使用人工智能生成的书籍分析报告。用户输入书名，我们的服务会生成一份报告。目前，服务生成固定长度（约10,000字）的中文报告。</p>
+      <p>Booktok 提供使用人工智能生成的书籍分析报告。用户输入书名，我们的服务会生成一份报告。目前，服务生成固定长度（约5,000字）的中文报告。</p>
 
       <h3>2. 用户资格和责任</h3>
       <ul>
@@ -106,8 +106,13 @@
     transform: translateY(-50%);
     color: #007bff !important;
     text-decoration: none;
+    /* Safari移动端修复 */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
 }
-.back-link:hover {
+.back-link:hover, .back-link:active {
     text-decoration: underline;
 }
 

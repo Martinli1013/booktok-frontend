@@ -1,7 +1,7 @@
 <template>
   <div class="legal-page">
     <header class="page-header">
-      <a href="/" class="back-link">&lt; 返回首页</a>
+      <router-link to="/" class="back-link">&lt; 返回首页</router-link>
       <h1>隐私政策</h1>
     </header>
     <div class="content">
@@ -98,8 +98,13 @@
     transform: translateY(-50%);
     color: #007bff !important;
     text-decoration: none;
+    /* Safari移动端修复 */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
 }
-.back-link:hover {
+.back-link:hover, .back-link:active {
     text-decoration: underline;
 }
 
