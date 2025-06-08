@@ -140,8 +140,8 @@
 
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
-      <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.17</p>
+      <p><router-link to="/privacy-policy" class="footer-link">隐私政策</router-link> | <router-link to="/terms-of-service" class="footer-link">服务条款</router-link></p>
+      <p class="version">版本 1.0.18</p>
     </footer>
   </div>
 </template>
@@ -1029,8 +1029,18 @@ const handleVisibilityChange = () => {
   margin-bottom: 5px;
 }
 
-.page-footer a {
+.page-footer a, .page-footer .footer-link {
   color: #333;
+  text-decoration: none;
+  /* Safari移动端修复 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.page-footer .footer-link:hover, .page-footer .footer-link:active {
+  text-decoration: underline;
 }
 
 @media (max-width: 600px) {
