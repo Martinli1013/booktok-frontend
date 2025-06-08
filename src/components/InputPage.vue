@@ -141,7 +141,7 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
       <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.15</p>
+      <p class="version">版本 1.0.16</p>
     </footer>
   </div>
 </template>
@@ -350,6 +350,12 @@ const clearSavedProgress = () => {
   resetForm();
 };
 
+// 仅清除进度数据（不重置表单）
+const clearProgressOnly = () => {
+  savedProgress.value = null;
+  localStorage.removeItem(PROGRESS_KEY);
+};
+
 // 从进度继续生成
 const resumeFromProgress = async () => {
   if (!savedProgress.value) return;
@@ -456,6 +462,9 @@ const stopAutoSave = () => {
 
 // 主要生成函数
 const generateReport = async () => {
+  console.log('🚀 generateReport 开始执行');
+  console.log('📖 书名:', bookQuery.value);
+  
   if (!bookQuery.value.trim()) {
     error.value = '书名不能为空！';
     return;
@@ -463,6 +472,7 @@ const generateReport = async () => {
   
   // 生成新的会话ID
   currentSessionId.value = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  console.log('🆔 会话ID:', currentSessionId.value);
   
   // 重置状态
   isLoading.value = true;
@@ -471,11 +481,13 @@ const generateReport = async () => {
   progress.value = 0;
   isAtBottom.value = true;
   
-  // 清除之前的保存进度（开始新任务）
-  clearSavedProgress();
+  // 清除之前的保存进度（但不重置表单）
+  clearProgressOnly();
+  console.log('🧹 已清除旧进度');
   
   startTimeTracking();
   startAutoSave(); // 开始自动保存
+  console.log('⏰ 已开始时间追踪和自动保存');
   
   // 初始进度动画
   const animateInitial = () => {
@@ -488,20 +500,23 @@ const generateReport = async () => {
   progressAnimationId = requestAnimationFrame(animateInitial);
 
   try {
+    console.log('📡 开始调用API生成报告');
     const response = await apiService.generateReport({ 
       bookQuery: bookQuery.value,
       sessionId: currentSessionId.value // 传递会话ID
     });
+    console.log('✅ API调用成功，收到响应');
     
     if (!response.body) {
       throw new Error('无法获取响应流');
     }
 
+    console.log('🔄 开始处理流式响应');
     const reader = response.body.getReader();
     await processStream(reader);
 
   } catch (err) {
-    console.error('生成报告失败:', err);
+    console.error('❌ 生成报告失败:', err);
     error.value = err.message || '生成报告失败，请稍后重试';
     cleanup();
   }
@@ -660,6 +675,9 @@ onMounted(() => {
   if (savedProgressData) {
     console.log('发现保存的进度:', savedProgressData);
   }
+  
+  // 添加页面可见性监听器
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 
 onUnmounted(() => {
@@ -668,10 +686,13 @@ onUnmounted(() => {
     saveProgress();
   }
   cleanup();
+  
+  // 清理页面可见性监听器
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 
-// 页面可见性变化监听（处理页面切换）
-document.addEventListener('visibilitychange', () => {
+// 页面可见性变化处理函数
+const handleVisibilityChange = () => {
   if (document.hidden) {
     // 页面变为后台，保存当前进度
     if (isLoading.value && reportContent.value.length > 200) {
@@ -685,7 +706,7 @@ document.addEventListener('visibilitychange', () => {
       // 这里可以添加连接状态检查逻辑
     }
   }
-});
+};
 </script>
 
 <style scoped>
@@ -954,6 +975,15 @@ document.addEventListener('visibilitychange', () => {
   background-color: #fff !important;
   padding: 10px;
   scroll-behavior: smooth;
+  text-align: left !important;
+}
+
+.preview-container div {
+  text-align: left !important;
+}
+
+.preview-container * {
+  text-align: left !important;
 }
 
 .preview-container::-webkit-scrollbar {
@@ -1080,6 +1110,12 @@ document.addEventListener('visibilitychange', () => {
   
   .preview-container {
     font-size: 0.6em; /* 移动端专用设置 */
+    text-align: left !important; /* 确保移动端也是左对齐 */
+  }
+  
+  .preview-container div,
+  .preview-container * {
+    text-align: left !important; /* 移动端内容左对齐 */
   }
   
   .preview-header {
