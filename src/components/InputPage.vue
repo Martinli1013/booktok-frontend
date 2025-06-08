@@ -141,7 +141,7 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
       <p><a href="/privacy-policy">隐私政策</a> | <a href="/terms-of-service">服务条款</a></p>
-      <p class="version">版本 1.0.16</p>
+      <p class="version">版本 1.0.17</p>
     </footer>
   </div>
 </template>
@@ -325,19 +325,27 @@ const loadSavedProgress = () => {
     const saved = localStorage.getItem(PROGRESS_KEY);
     if (saved) {
       const progressState = JSON.parse(saved);
+      console.log('🔍 发现保存的进度:', progressState);
       
       // 检查是否在24小时内
       const hoursSinceLastSave = (Date.now() - progressState.lastSaveTime) / (1000 * 60 * 60);
-      if (hoursSinceLastSave < 24 && progressState.contentLength > 200) {
+      console.log(`⏰ 距离上次保存: ${hoursSinceLastSave.toFixed(1)}小时`);
+      console.log(`📝 内容长度: ${progressState.contentLength}字`);
+      
+      if (hoursSinceLastSave < 24 && progressState.contentLength > 50) { // 降低到50字
+        console.log('✅ 断点续传条件满足，加载进度');
         savedProgress.value = progressState;
         return progressState;
       } else {
-        // 过期或内容太少，清理
+        console.log('❌ 断点续传条件不满足，清理旧数据');
+        console.log(`原因: 时间${hoursSinceLastSave >= 24 ? '过期' : '有效'}, 内容${progressState.contentLength <= 50 ? '太少' : '足够'}`);
         localStorage.removeItem(PROGRESS_KEY);
       }
+    } else {
+      console.log('📭 没有发现保存的进度数据');
     }
   } catch (error) {
-    console.warn('加载进度失败:', error);
+    console.warn('⚠️ 加载进度失败:', error);
     localStorage.removeItem(PROGRESS_KEY);
   }
   return null;
@@ -407,7 +415,10 @@ const buildContinuePrompt = (bookName, existingContent) => {
   const contentLength = existingContent.length;
   let continueInstruction = '';
   
-  if (contentLength < 1000) {
+  if (contentLength < 200) {
+    // 内容很少，几乎重新开始
+    continueInstruction = `请继续完成《${bookName}》的深度解读报告。如果当前内容过少，请在此基础上继续补充完整的报告内容，总长度约5000字。`;
+  } else if (contentLength < 1000) {
     continueInstruction = `请继续完成《${bookName}》的深度解读报告，从当前内容自然地继续写下去，直到完成全部约5000字的报告。`;
   } else if (contentLength < 3000) {
     continueInstruction = `请继续完成《${bookName}》的深度解读报告的剩余部分，保持与前文的连贯性，直到完成全部内容。`;
@@ -423,10 +434,11 @@ ${existingContent}
 
 要求：
 1. 与上述内容保持完全一致的写作风格和格式
-2. 不要重复已有内容
+2. 不要重复已有内容  
 3. 直接从需要继续的地方开始，无需重新介绍
 4. 确保整篇报告的完整性和连贯性
-5. 继续使用Markdown格式，保持章节结构清晰`;
+5. 继续使用Markdown格式，保持章节结构清晰
+6. 如果已有内容不完整，请在此基础上继续补充和完善`;
 };
 
 // 查看已保存的内容
