@@ -137,6 +137,22 @@ class NetworkManager {
       return false;
     }
 
+    // 认证和客户端错误不应该重试
+    const nonRetryableErrors = [
+      'http 401',  // 认证失败
+      'http 403',  // 权限不足
+      'http 400',  // 请求错误
+      'http 404',  // 资源不存在
+      'http 422'   // 请求格式错误
+    ];
+
+    const errorMessage = error.message.toLowerCase();
+    
+    // 如果是不可重试的错误，直接返回false
+    if (nonRetryableErrors.some(keyword => errorMessage.includes(keyword))) {
+      return false;
+    }
+
     // 网络相关错误应该重试
     const retryableErrors = [
       'Failed to fetch',
@@ -145,10 +161,10 @@ class NetworkManager {
       'TimeoutError',
       'network',
       'timeout',
-      'abort'
+      'abort',
+      'http 5'  // 5xx服务器错误可以重试
     ];
 
-    const errorMessage = error.message.toLowerCase();
     return retryableErrors.some(keyword => errorMessage.includes(keyword));
   }
 
