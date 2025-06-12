@@ -21,18 +21,29 @@
     </header>
 
     <form @submit.prevent="generateReport" class="input-form" :class="{ 'form-loading': isLoading }">
-      <div class="form-group">
-        <label for="book-query">请输入书名：</label>
-        <input 
-          type="text" 
-          id="book-query"
-          v-model="bookQuery"
-          ref="bookQueryInput"
-          placeholder="例如：百年孤独、1984、活着..."
-          class="form-input"
-          :disabled="isLoading"
-          autocomplete="off"
-        />
+      <!-- 替换为新的书籍搜索组件 -->
+      <BookSearchInput
+        v-model="bookQuery"
+        :disabled="isLoading"
+        @book-selected="handleBookSelected"
+        @search-change="handleSearchChange"
+        ref="bookSearchInput"
+      />
+      
+      <!-- 选中书籍信息显示 -->
+      <div v-if="selectedBookInfo && !isLoading" class="selected-book-info">
+        <div class="book-info-header">
+          <span class="info-icon">✓</span>
+          <span class="info-text">已选择书籍</span>
+          <button @click="clearBookSelection" type="button" class="clear-selection-btn">
+            更换
+          </button>
+        </div>
+        <div class="book-info-details">
+          <strong>{{ selectedBookInfo.title }}</strong>
+          <span v-if="selectedBookInfo.author">作者：{{ selectedBookInfo.author }}</span>
+          <span v-if="selectedBookInfo.publisher">出版社：{{ selectedBookInfo.publisher }}</span>
+        </div>
       </div>
       
       <button type="submit" class="generate-button" :disabled="isLoading || !bookQuery.trim()">
@@ -141,7 +152,7 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
       <p><router-link to="/privacy-policy" class="footer-link">隐私政策</router-link> | <router-link to="/terms-of-service" class="footer-link">服务条款</router-link></p>
-      <p class="version">版本 1.0.18</p>
+      <p class="version">版本 1.1.0</p>
     </footer>
   </div>
 </template>
@@ -150,12 +161,15 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import apiService from '../services/apiService';
+import BookSearchInput from './BookSearchInput.vue';
 
 const router = useRouter();
 
 // 基本状态
 const bookQuery = ref('');
 const bookQueryInput = ref(null);
+const bookSearchInput = ref(null);
+const selectedBookInfo = ref(null);
 const isLoading = ref(false);
 const error = ref(null);
 const reportContent = ref('');
@@ -197,6 +211,31 @@ const formatTime = (ms) => {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   return minutes > 0 ? `${minutes}分${seconds % 60}秒` : `${seconds}秒`;
+};
+
+// 书籍选择相关处理函数
+const handleBookSelected = (bookInfo) => {
+  console.log('书籍已选择:', bookInfo);
+  selectedBookInfo.value = bookInfo;
+  
+  // 更新书名（这将确保后台生成时提供更准确的信息）
+  bookQuery.value = bookInfo.title;
+  
+  // 清除任何现有错误
+  error.value = null;
+};
+
+const handleSearchChange = (query) => {
+  // 当用户手动输入时，清除选中的书籍信息
+  if (selectedBookInfo.value && query !== selectedBookInfo.value.title) {
+    selectedBookInfo.value = null;
+  }
+};
+
+const clearBookSelection = () => {
+  selectedBookInfo.value = null;
+  bookQuery.value = '';
+  bookSearchInput.value?.focus();
 };
 
 // 进度计算
@@ -513,10 +552,32 @@ const generateReport = async () => {
 
   try {
     console.log('📡 开始调用API生成报告');
-    const response = await apiService.generateReport({ 
-      bookQuery: bookQuery.value,
-      sessionId: currentSessionId.value // 传递会话ID
-    });
+    
+    // 构建请求参数 - 充分利用Google Books API的结构化信息
+    let requestParams;
+    
+    if (selectedBookInfo.value) {
+      // 如果用户选中了具体书籍，传递完整的书籍信息
+      requestParams = {
+        bookQuery: bookQuery.value,
+        bookInfo: {
+          title: selectedBookInfo.value.title,
+          author: selectedBookInfo.value.author,
+          isbn: selectedBookInfo.value.isbn
+        },
+        sessionId: currentSessionId.value
+      };
+      console.log('📚 使用完整书籍信息:', requestParams.bookInfo);
+    } else {
+      // 如果没有选中具体书籍，使用原来的格式
+      requestParams = {
+        bookQuery: bookQuery.value,
+        sessionId: currentSessionId.value
+      };
+      console.log('⚠️ 仅使用原始书名:', bookQuery.value);
+    }
+    
+    const response = await apiService.generateReport(requestParams);
     console.log('✅ API调用成功，收到响应');
     
     if (!response.body) {
@@ -821,6 +882,68 @@ const handleVisibilityChange = () => {
 .generate-button:disabled {
   background-color: #aaa;
   cursor: not-allowed;
+}
+
+/* 选中书籍信息显示样式 */
+.selected-book-info {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: #e8f5e8;
+  border: 2px solid #28a745;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.book-info-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.info-icon {
+  color: #28a745;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.info-text {
+  color: #155724;
+  font-weight: 600;
+  flex: 1;
+}
+
+.clear-selection-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid #28a745;
+  color: #28a745;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-selection-btn:hover {
+  background: #28a745;
+  color: white;
+}
+
+.book-info-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #155724;
+}
+
+.book-info-details strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.book-info-details span {
+  font-size: 13px;
+  color: #28a745;
 }
 
 .generate-button:hover:not(:disabled) {
@@ -1230,11 +1353,13 @@ const handleVisibilityChange = () => {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .recovery-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 10px 16px;
   border: none;
@@ -1246,6 +1371,7 @@ const handleVisibilityChange = () => {
   background: #f8f9fa;
   color: #495057;
   border: 1px solid #dee2e6;
+  text-align: center;
 }
 
 .recovery-btn:hover {
@@ -1297,6 +1423,7 @@ const handleVisibilityChange = () => {
 .recovery-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 10px 16px;
   border: 2px solid #333;
@@ -1310,6 +1437,7 @@ const handleVisibilityChange = () => {
   box-shadow: 2px 2px 0px #333;
   text-decoration: none;
   min-width: 120px;
+  text-align: center;
 }
 
 .recovery-btn:hover {

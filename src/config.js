@@ -1,2 +1,8 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://booktok-backend.onrender.com';
-export const API_KEY = import.meta.env.VITE_API_KEY || 'booktok-frontend-key'; // This key is for authenticating frontend to new-api
+export const API_KEY = import.meta.env.VITE_API_KEY || 'sk-YtWb0KfXMzsBE5E27f4e38Fc08C54d43B028D71b38A764C3'; // 使用有效的fallback密钥
+
+// 只在开发环境显示调试信息
+if (import.meta.env.MODE === 'development') {
+  console.log('Config loaded - API_BASE_URL:', API_BASE_URL);
+  console.log('Config loaded - API_KEY:', API_KEY.substring(0, 10) + '...');
+}
