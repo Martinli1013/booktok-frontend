@@ -1,5 +1,5 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://booktok-backend.onrender.com';
-export const API_KEY = import.meta.env.VITE_API_KEY || 'sk-YtWb0KfXMzsBE5E27f4e38Fc08C54d43B028D71b38A764C3'; // 使用有效的fallback密钥
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://booktok-newapi.onrender.com';
+export const API_KEY = import.meta.env.VITE_API_KEY || 'sk-X3xEM24rARBk8pUU6uiTfizXw7nu5qYFyBDpHOeb1XyMpec9'; // 使用有效的fallback密钥
 
 // 只在开发环境显示调试信息
 if (import.meta.env.MODE === 'development') {
