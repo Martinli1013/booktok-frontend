@@ -3,7 +3,7 @@
     <header class="page-header">
       <img 
         src="/images/booktok-logo.png" 
-        alt="Booktok Logo" 
+        alt="BookTok Logo" 
         class="logo"
         loading="eager"
         decoding="async"
@@ -11,7 +11,7 @@
       />
       <img 
         src="/images/pixel-header.png" 
-        alt="Booktok - AI深度解读任何书籍" 
+        alt="BookTok - AI深度解读任何书籍" 
         class="header-image-title"
         loading="eager"
         decoding="async"
@@ -47,7 +47,7 @@
       </div>
       
       <button type="submit" class="generate-button" :disabled="isLoading || !bookQuery.trim()">
-        {{ isLoading ? 'Booktok飞速读书中...' : '快速读书' }}
+        {{ isLoading ? 'BookTok飞速读书中...' : '快速读书' }}
       </button>
 
       <!-- 预览区域 -->
@@ -150,7 +150,7 @@
     </div>
 
     <footer class="page-footer">
-      <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
+      <p>&copy; {{ currentYear }} BookTok. 保留所有权利。</p>
       <p><router-link to="/privacy-policy" class="footer-link">隐私政策</router-link> | <router-link to="/terms-of-service" class="footer-link">服务条款</router-link></p>
       <p class="version">版本 1.1.0</p>
     </footer>

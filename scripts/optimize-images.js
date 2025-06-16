@@ -7,12 +7,18 @@
 
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
 
-console.log('📸 Booktok 图片优化建议');
-console.log('================================');
+function printTitle() {
+  console.log('================================');
+  console.log('📸 BookTok 图片优化建议');
+  console.log('================================');
+}
 
 const imageDir = path.join(__dirname, '../public/images');
 const images = ['booktok-logo.png', 'pixel-header.png'];
+
+printTitle();
 
 images.forEach(filename => {
   const filePath = path.join(imageDir, filename);

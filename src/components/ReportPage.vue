@@ -51,8 +51,8 @@
     </div> -->
 
     <footer class="page-footer">
-       <p class="brand-watermark">报告由 Booktok 生成</p>
-      <p>&copy; {{ new Date().getFullYear() }} Booktok. 保留所有权利。</p>
+       <p class="brand-watermark">报告由 BookTok 生成</p>
+      <p>&copy; {{ new Date().getFullYear() }} BookTok. 保留所有权利。</p>
     </footer>
   </div>
 </template>
