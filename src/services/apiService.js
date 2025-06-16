@@ -6,16 +6,6 @@ const isDevelopment = import.meta.env.MODE === 'development';
 
 export default {
   async generateReport(bookDetails) {
-    // 只在开发环境输出调试信息
-    if (isDevelopment) {
-      console.log('Attempting to generate report with details:', bookDetails);
-      console.log('Using API Key:', API_KEY.substring(0, 10) + "..."); 
-      console.log('Using API Base URL:', API_BASE_URL);
-      console.log('Environment variables check:');
-      console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
-      console.log('VITE_API_KEY:', import.meta.env.VITE_API_KEY ? import.meta.env.VITE_API_KEY.substring(0, 10) + "..." : 'undefined');
-    }
-
     // 构建优化的提示词，充分利用结构化书籍信息
     let basePrompt;
     
@@ -114,8 +104,9 @@ export default {
       const response = await networkManager.fetchWithRetry(`${API_BASE_URL}/v1/chat/completions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`,
+          'New-Api-User': '1',
         },
         body: JSON.stringify(requestData)
       });
@@ -166,8 +157,9 @@ export default {
       const response = await networkManager.fetchWithRetry(`${API_BASE_URL}/v1/chat/completions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`,
+          'New-Api-User': '1',
         },
         body: JSON.stringify(requestData)
       });
@@ -205,6 +197,7 @@ export default {
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
+          'New-Api-User': '1'
         },
       });
       

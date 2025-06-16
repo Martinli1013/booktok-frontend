@@ -11,11 +11,9 @@ export default defineConfig({
       }
     }
   },
-  // 开发服务器配置 - 支持SPA路由
   server: {
     historyApiFallback: true,
   },
-  // 预览服务器配置
   preview: {
     historyApiFallback: true,
   }
