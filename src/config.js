@@ -3,7 +3,7 @@
 export const API_BASE_URL = 'https://booktok-newapi.onrender.com';
 
 // 直接从环境变量中读取密钥。Vite会自动处理.env文件
-export const API_KEY = import.meta.env.VITE_FRONTEND_ACCESS_TOKEN;
+export const API_KEY = import.meta.env.VITE_API_KEY;
 
 // 只在开发环境显示调试信息
 if (import.meta.env.MODE === 'development') {
