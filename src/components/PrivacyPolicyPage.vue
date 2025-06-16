@@ -5,10 +5,10 @@
       <h1>隐私政策</h1>
     </header>
     <div class="content">
-      <h2>Booktok 隐私政策</h2>
+      <h2>BookTok 隐私政策</h2>
       <p>最后更新：{{ new Date().toLocaleDateString() }}</p>
 
-      <p>欢迎使用 Booktok！我们致力于保护您的个人信息和您的隐私权。如果您对我们的政策或我们关于您的个人信息的做法有任何疑问或疑虑，请通过 martinli_1013@yahoo.com 与我们联系。</p>
+      <p>欢迎使用 BookTok！我们致力于保护您的个人信息和您的隐私权。如果您对我们的政策或我们关于您的个人信息的做法有任何疑问或疑虑，请通过 martinli_1013@yahoo.com 与我们联系。</p>
 
       <h3>我们收集哪些信息？</h3>
       <p>我们可能会收集您在与服务交互时自愿提供给我们的个人信息，例如：</p>
@@ -28,7 +28,7 @@
 
       <h3>您的信息会与任何人共享吗？</h3>
       <p>我们不会与第三方共享、出售、出租或交易您的任何个人信息，除非法律要求或为了提供服务（例如，将书名发送给AI模型API以生成报告）。</p>
-      <p>请注意，Booktok 使用 DeepSeek API 生成报告。您提交的书名将发送到此服务。我们建议您查阅 DeepSeek 的隐私政策以了解他们如何处理数据。</p>
+      <p>请注意，BookTok 使用 DeepSeek API 生成报告。您提交的书名将发送到此服务。我们建议您查阅 DeepSeek 的隐私政策以了解他们如何处理数据。</p>
 
       <h3>数据存储和安全</h3>
       <p>我们目前不存储用户账户或报告历史记录。生成的报告在您的浏览器会话期间可用，或者如果您选择下载或通过电子邮件发送。</p>
@@ -47,7 +47,7 @@
       <p>如果您对本隐私政策有任何疑问或评论，可以通过以下方式与我们联系：martinli_1013@yahoo.com</p>
     </div>
     <footer class="page-footer">
-      <p>&copy; {{ new Date().getFullYear() }} Booktok. 保留所有权利。</p>
+      <p>&copy; {{ new Date().getFullYear() }} BookTok. 保留所有权利。</p>
     </footer>
   </div>
 </template>

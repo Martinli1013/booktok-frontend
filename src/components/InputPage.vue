@@ -3,21 +3,12 @@
     <header class="page-header">
       <img 
         src="/images/booktok-logo.png" 
-        alt="Booktok Logo" 
+        alt="BookTok Logo" 
         class="logo"
         loading="eager"
         decoding="async"
         fetchpriority="high"
       />
-      <img 
-        src="/images/pixel-header.png" 
-        alt="Booktok - AI深度解读任何书籍" 
-        class="header-image-title"
-        loading="eager"
-        decoding="async"
-        fetchpriority="high"
-      />
-      <p>输入书籍名称，带您快速读懂这本书</p>
     </header>
 
     <form @submit.prevent="generateReport" class="input-form" :class="{ 'form-loading': isLoading }">
@@ -47,7 +38,7 @@
       </div>
       
       <button type="submit" class="generate-button" :disabled="isLoading || !bookQuery.trim()">
-        {{ isLoading ? 'Booktok飞速读书中...' : '快速读书' }}
+        {{ isLoading ? 'BookTok飞速读书中...' : '快速读书' }}
       </button>
 
       <!-- 预览区域 -->
@@ -150,9 +141,9 @@
     </div>
 
     <footer class="page-footer">
-      <p>&copy; {{ currentYear }} Booktok. 保留所有权利。</p>
+      <p>&copy; {{ currentYear }} BookTok. 保留所有权利。</p>
       <p><router-link to="/privacy-policy" class="footer-link">隐私政策</router-link> | <router-link to="/terms-of-service" class="footer-link">服务条款</router-link></p>
-      <p class="version">版本 1.1.0</p>
+      <p class="version">版本 1.1.1</p>
     </footer>
   </div>
 </template>
@@ -791,54 +782,44 @@ const handleVisibilityChange = () => {
   }
 }
 .input-page {
-  max-width: 700px;
-  margin: 20px auto;
+  max-width: 500px;
+  margin: 0 auto;
   padding: 20px;
-  font-family: sans-serif;
-  background-color: #f0f0f0 !important;
-  border: 2px solid #333;
-  box-shadow: 4px 4px 0px #333;
-  color: #333 !important;
-  color-scheme: light !important; /* 强制浅色模式 */
+  text-align: center;
+  font-family: 'Pixelify Sans', sans-serif;
+  color: #333;
 }
 
 .page-header {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.page-header p {
-  font-size: 1em; /* 减小两号字体 */
+  margin-bottom: 2rem;
 }
 
 .logo {
-  width: 200px;
+  max-width: 100%;
   height: auto;
-  margin-bottom: -35px;
-  /* 性能优化 */
-  will-change: transform;
-  transform: translateZ(0);
-  image-rendering: optimizeQuality;
-  /* 指定明确尺寸避免重排 */
-  max-width: 200px;
-  aspect-ratio: auto;
-}
-
-.header-image-title {
+  margin: 0 auto 1rem auto;
   display: block;
-  max-width: 350px;
-  height: auto;
-  margin: 0 auto;
-  /* 性能优化 */
-  will-change: transform;
-  transform: translateZ(0);
-  image-rendering: optimizeQuality;
-  /* 指定明确尺寸避免重排 */
-  aspect-ratio: auto;
 }
 
-.input-form .form-group {
-  margin-bottom: 20px;
+/* 响应式调整 */
+@media (max-width: 600px) {
+  .input-page {
+    padding: 15px;
+  }
+  .page-header {
+    margin-bottom: 1.5rem;
+  }
+  .logo {
+     max-width: 90%; /* 在移动端稍微缩小logo */
+  }
+}
+
+.input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  transition: opacity 0.3s ease-in-out;
 }
 
 .form-group label {
@@ -1164,129 +1145,6 @@ const handleVisibilityChange = () => {
 
 .page-footer .footer-link:hover, .page-footer .footer-link:active {
   text-decoration: underline;
-}
-
-@media (max-width: 600px) {
-  .input-page {
-    max-width: 100%;
-    padding: 8px;
-    border: 2px solid #333; /* 恢复pixel风格边框 */
-    box-shadow: 4px 4px 0px #333; /* 恢复pixel风格阴影 */
-    margin: 8px auto;
-    background-color: #f0f0f0;
-  }
-  
-  .page-header {
-    margin-bottom: 8px;
-    padding-bottom: 2px;
-    min-height: 1.2em;
-  }
-  
-  .logo {
-    width: 140px;
-    margin-bottom: -35px; /* 负边距让下面的图片更靠近 */
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  
-  .header-image-title {
-    max-width: 70vw;
-    margin-bottom: 6px;
-    margin-top: 0; /* 确保没有上边距 */
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  
-  .page-header p {
-    font-size: 0.85em; /* 减小两号字体 */
-    margin-bottom: 2px;
-  }
-  
-  .input-form {
-    padding: 0;
-  }
-  
-  .form-group label {
-    font-size: 1em;
-    margin-bottom: 2px;
-  }
-  
-  .form-group input {
-    height: auto;
-    font-size: 0.9em;
-    padding: 12px;
-    width: 100%;
-    box-sizing: border-box;
-    line-height: 1.4;
-  }
-  
-  .form-hint {
-    font-size: 0.75em; /* 减小两号字体，与桌面版保持一致 */
-    margin-top: 2px;
-    word-break: break-all;
-  }
-  
-  .generate-button {
-    font-size: 1.05em;
-    padding: 11px;
-    margin-top: 10px;
-  }
-  
-  .loading-indicator, .error-message {
-    padding: 8px;
-    font-size: 0.85em;
-  }
-  
-  .page-footer {
-    font-size: 0.8em;
-    padding-top: 6px;
-    margin-top: 10px;
-  }
-  
-  .page-footer p {
-    margin-bottom: 2px;
-  }
-  
-  .page-footer .version {
-    margin-bottom: 15px; /* 给版本号添加更多底部间距 */
-  }
-  
-  .preview-container {
-    font-size: 0.6em; /* 移动端专用设置 */
-    text-align: left !important; /* 确保移动端也是左对齐 */
-  }
-  
-  .preview-container div,
-  .preview-container * {
-    text-align: left !important; /* 移动端内容左对齐 */
-  }
-  
-  .preview-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .scroll-to-bottom-btn {
-    align-self: flex-end;
-    font-size: 11px;
-    padding: 4px 8px;
-  }
-  
-  .scroll-to-bottom-btn svg {
-    width: 14px;
-    height: 14px;
-  }
-  
-  .progress-text {
-    font-size: 0.8em; /* 当前继承桌面端0.95em，可以设为更小 */
-  }
-  
-  .tips-list li {
-    font-size: 0.65em; /* 移动端使用更小的字体 */
-  }
 }
 
 /* 版本信息 */
