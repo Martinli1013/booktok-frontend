@@ -11,6 +11,8 @@
       />
     </header>
 
+    <p class="tagline">输入书籍名称，带您快速读懂这本书</p>
+
     <form @submit.prevent="generateReport" class="input-form" :class="{ 'form-loading': isLoading }">
       <!-- 替换为新的书籍搜索组件 -->
       <BookSearchInput
@@ -143,7 +145,7 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} BookTok. 保留所有权利。</p>
       <p><router-link to="/privacy-policy" class="footer-link">隐私政策</router-link> | <router-link to="/terms-of-service" class="footer-link">服务条款</router-link></p>
-      <p class="version">版本 1.1.1</p>
+      <p class="version">版本 1.1.2</p>
     </footer>
   </div>
 </template>
@@ -782,35 +784,53 @@ const handleVisibilityChange = () => {
   }
 }
 .input-page {
-  max-width: 500px;
+  max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
-  text-align: center;
-  font-family: 'Pixelify Sans', sans-serif;
-  color: #333;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 
 .page-header {
-  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-top: 2rem;
 }
 
 .logo {
-  max-width: 100%;
+  max-width: 70%;
   height: auto;
-  margin: 0 auto 1rem auto;
-  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.tagline {
+  text-align: center;
+  font-size: 1.1rem;
+  color: #555;
+  margin-bottom: 2rem;
+  font-weight: bold;
+  font-family: 'Pixelify Sans', sans-serif;
 }
 
 /* 响应式调整 */
 @media (max-width: 600px) {
   .input-page {
     padding: 15px;
+    min-height: auto;
   }
   .page-header {
     margin-bottom: 1.5rem;
   }
   .logo {
-     max-width: 90%; /* 在移动端稍微缩小logo */
+     max-width: 100%; /* 在移动端稍微缩小logo */
+  }
+  .tagline {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
   }
 }
 
