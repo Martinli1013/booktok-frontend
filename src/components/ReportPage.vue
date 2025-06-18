@@ -1,7 +1,8 @@
 <template>
   <div class="report-page">
     <header class="page-header">
-       <a href="/" class="back-link">&lt; 返回首页</a>
+       <a href="/" class="back-btn">&lt; 返回首页</a>
+       <button @click="printReport" class="export-pdf-btn">导出PDF</button>
     </header>
 
     <div class="report-title">
@@ -15,7 +16,7 @@
       <button @click="toggleEyeCareMode">{{ eyeCareMode ? '关闭护眼' : '开启护眼' }}</button>
     </div>
 
-    <div class="report-content-wrapper" :class="{ 'eye-care': eyeCareMode }" :style="contentStyle">
+    <div class="report-content-wrapper" :class="{ 'eye-care': eyeCareMode }" :style="contentStyle" ref="reportContent">
       <nav v-if="tableOfContents.length > 0" class="table-of-contents">
         <h2>目录</h2>
         <ul>
@@ -184,6 +185,18 @@ const shareReport = () => {
   // TODO: 实现分享逻辑 (例如复制链接到剪贴板, 或调用Web Share API)
 };
 
+const printReport = () => {
+  const originalTitle = document.title;
+  document.title = bookTitle.value || 'BookTok Report'; // Set title to book name
+
+  // Use requestAnimationFrame to ensure title is updated before print dialog
+  requestAnimationFrame(() => {
+    window.print();
+    // Restore the original title after the print dialog is handled
+    document.title = originalTitle;
+  });
+};
+
 </script>
 
 <style scoped>
@@ -206,21 +219,93 @@ const shareReport = () => {
 }
 
 .page-header {
-  text-align: left; /* Changed from center to left for backlink */
+  display: flex; /* Use flexbox for layout */
+  justify-content: space-between; /* Space items out */
+  align-items: center; /* Vertically center items */
+  text-align: left;
   margin-bottom: 20px;
-  padding-bottom: 10px; /* Reduced padding slightly */
+  padding-bottom: 10px;
   border-bottom: 2px solid #ccc;
   position: relative;
-  min-height: 2em; /* Ensure space for backlink even if title is removed */
+  min-height: 2em;
 }
-.back-link {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #007bff !important;
-    text-decoration: none;
-    font-size: 0.85em;
+
+.back-btn {
+  background-color: #FFFFFF; /* White background */
+  color: #333; /* Black text */
+  border: 2px solid #333;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  box-shadow: 4px 4px 0px #333;
+  transition: all 0.1s ease-in-out;
+  font-weight: bold;
+}
+
+.back-btn:hover {
+  background-color: #f2f2f2;
+  box-shadow: 2px 2px 0px #333;
+  transform: translate(2px, 2px);
+}
+
+.back-btn:active {
+  background-color: #e6e6e6;
+  box-shadow: 0px 0px 0px #333;
+  transform: translate(4px, 4px);
+}
+
+.export-pdf-btn {
+  background-color: #4CAF50; /* Green background */
+  color: white;
+  border: 2px solid #333;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  box-shadow: 4px 4px 0px #333;
+  transition: all 0.1s ease-in-out;
+  font-weight: bold;
+}
+
+.export-pdf-btn:hover {
+  background-color: #45a049;
+  box-shadow: 2px 2px 0px #333;
+  transform: translate(2px, 2px);
+}
+
+.export-pdf-btn:active {
+  background-color: #3e8e41;
+  box-shadow: 0px 0px 0px #333;
+  transform: translate(4px, 4px);
+}
+
+/* Responsive styles for buttons on smaller screens */
+@media (max-width: 600px) {
+  .export-pdf-btn,
+  .back-btn {
+    font-size: 13px; /* Smaller font */
+    padding: 8px 12px; /* Tighter padding */
+    box-shadow: 3px 3px 0px #333; /* Slightly smaller shadow */
+  }
+
+  .export-pdf-btn:hover,
+  .back-btn:hover {
+    box-shadow: 2px 2px 0px #333;
+    transform: translate(1px, 1px);
+  }
+
+  .export-pdf-btn:active,
+  .back-btn:active {
+    box-shadow: 0px 0px 0px #333;
+    transform: translate(3px, 3px);
+  }
 }
 
 .report-title {
@@ -243,20 +328,42 @@ const shareReport = () => {
   font-family: sans-serif;
 }
 
-.report-actions-top, .report-actions-bottom {
+.report-actions-top {
+  display: flex;
+  gap: 10px;
   margin-bottom: 20px;
-  text-align: center;
+  justify-content: center;
 }
-.report-actions-top button, .report-actions-bottom button {
-  margin: 5px;
-  padding: 8px 12px;
-  background-color: #e0e0e0 !important;
-  border: 1px solid #333;
+
+.report-actions-top button {
+  /* Unified Pixel Style for ALL screen sizes */
+  display: flex; /* Add flex for centering */
+  align-items: center; /* Vertical center */
+  justify-content: center; /* Horizontal center */
+  background-color: #FFFFFF;
+  color: #333;
+  border: 2px solid #333;
+  box-shadow: 3px 3px 0px #999;
+  transition: all 0.1s ease-in-out;
+  font-weight: bold;
   cursor: pointer;
-  color: #333 !important;
+  text-align: center;
+
+  /* --- Sizing for PC by default --- */
+  font-size: 14px;
+  padding: 8px 16px;
 }
-.report-actions-top button:hover, .report-actions-bottom button:hover {
-  background-color: #d0d0d0 !important;
+
+.report-actions-top button:hover {
+  background-color: #f2f2f2;
+  box-shadow: 2px 2px 0px #999;
+  transform: translate(1px, 1px);
+}
+
+.report-actions-top button:active {
+  background-color: #e6e6e6;
+  box-shadow: 0px 0px 0px #999;
+  transform: translate(3px, 3px);
 }
 
 .report-content-wrapper {
@@ -555,18 +662,18 @@ const shareReport = () => {
     margin-bottom: 16px;
   }
   .report-actions-top button {
-    flex: 1 1 0;
-    min-width: 0;
-    font-size: 0.7em;
-    padding: 5px 0;
-    margin: 0;
-    box-sizing: border-box;
-    border-radius: 4px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 2px 2px 0px #333;
+    /* --- Sizing and Layout for Mobile --- */
+    font-size: 11px; /* Further reduce font size for small screens */
+    padding: 10px 5px; /* Adjust padding for smaller screens */
+    flex: 1; /* This is the key to fix layout */
+    min-width: 0; /* Required for flex items to shrink properly */
+    white-space: nowrap; /* Prevent text from wrapping */
+  }
+  .report-actions-top button:hover,
+  .report-actions-top button:active {
+    background-color: #e0e0e0;
+    box-shadow: none;
+    transform: none;
   }
   .report-content-wrapper {
     flex-direction: column !important;
@@ -647,6 +754,63 @@ const shareReport = () => {
     letter-spacing: 0.3px;
   }
 }
+
+@media print {
+  @page {
+    size: A4; /* Suggest a standard page size */
+    margin: 2cm 1.5cm; /* Generous margins for readability */
+
+    /* Custom header and footer. This attempts to override browser defaults.
+       For the best result, users may still need to disable
+       "Headers and Footers" in their browser's print dialog. */
+    @top-left { content: "" }
+    @top-center { content: "" }
+    @top-right { content: "" }
+    
+    @bottom-center {
+        content: "报告由BookTok生成 - www.booktok.cc";
+        font-family: sans-serif;
+        font-size: 9pt;
+        color: #808080;
+        vertical-align: top;
+    }
+  }
+
+  /* Hide unwanted screen elements */
+  .page-header,
+  .report-actions-top,
+  .table-of-contents,
+  .visualizations-sidebar,
+  .page-footer {
+    display: none;
+  }
+
+  /* Reset the main container's layout for print.
+     Padding is removed because @page margins are used instead. */
+  .report-page {
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    max-width: 100%;
+  }
+
+  /* Clean up title styles for print */
+  .report-title {
+     border: none;
+     box-shadow: none;
+     text-shadow: none;
+     padding: 0 0 20px 0;
+     text-align: center;
+  }
+  
+  /* Standardize body font for print */
+  .report-body {
+    font-size: 12pt !important;
+    line-height: 1.5 !important;
+  }
+}
+
 </style>
 
 <!-- 移动端全局背景色设置（不受scoped限制） -->

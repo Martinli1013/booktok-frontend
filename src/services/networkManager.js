@@ -14,23 +14,23 @@ class NetworkManager {
   async fetchWithRetry(url, options, retries = 3) {
     for (let i = 0; i < retries; i++) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
 
-        const response = await fetch(url, {
-          ...options,
+      const response = await fetch(url, {
+        ...options,
           signal: controller.signal,
-        });
+      });
 
-        clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-        if (!response.ok) {
+      if (!response.ok) {
           // 对于像4xx, 5xx这样的错误，直接抛出，由apiService处理
           const errorBody = await response.text();
           console.error(`HTTP error! status: ${response.status}, body: ${errorBody}`);
           throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
+    }
+
         console.log(`Request to ${url} successful.`);
         return response; // 成功时直接返回响应
 
@@ -40,7 +40,7 @@ class NetworkManager {
           // 这是最后一次尝试，将错误向上抛出
           console.error('API call failed after all retries:', error);
           throw error;
-        }
+  }
         // 等待一段时间再重试
         await new Promise(res => setTimeout(res, 1000 * (i + 1)));
       }
