@@ -145,7 +145,7 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} BookTok. 保留所有权利。</p>
       <p><router-link to="/privacy-policy" class="footer-link">隐私政策</router-link> | <router-link to="/terms-of-service" class="footer-link">服务条款</router-link></p>
-      <p class="version">版本 1.1.2</p>
+      <p class="version">版本 1.1.3</p>
     </footer>
   </div>
 </template>
