@@ -154,7 +154,7 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} BookTok. 保留所有权利。</p>
       <p><router-link to="/privacy-policy" class="footer-link">隐私政策</router-link> | <router-link to="/terms-of-service" class="footer-link">服务条款</router-link></p>
-      <p class="version">版本 1.1.4</p>
+      <p class="version">版本 1.1.5</p>
     </footer>
   </div>
 </template>
@@ -943,11 +943,11 @@ const handleVisibilityChange = () => {
 .generate-button {
   display: block;
   width: 100%;
-  padding: 12px;
+  padding: 15px 20px;
   background-color: #4CAF50;
   color: white;
   border: 2px solid #333;
-  font-size: 1.2em;
+  font-size: 1.1rem;
   cursor: pointer;
   text-align: center;
   box-shadow: 2px 2px 0px #333;
@@ -1480,6 +1480,12 @@ const handleVisibilityChange = () => {
   .recovery-btn {
     background: #f9f9f9 !important;
     color: #333 !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .preview-container {
+    color: #000000; /* 纯黑色 */
   }
 }
 </style> 
