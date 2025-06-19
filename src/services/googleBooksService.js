@@ -52,6 +52,46 @@ class GoogleBooksService {
   }
 
   /**
+   * 通过ISBN搜索书籍
+   * @param {string} isbn - 搜索的ISBN
+   * @returns {Promise<Array>} 书籍列表 (通常只有一个结果)
+   */
+  async searchByISBN(isbn) {
+    const trimmedIsbn = isbn.trim();
+    if (!trimmedIsbn) {
+      return [];
+    }
+
+    const cacheKey = `isbn_${trimmedIsbn}`;
+    
+    // 检查缓存
+    if (this.cache.has(cacheKey)) {
+      const cached = this.cache.get(cacheKey);
+      if (Date.now() - cached.timestamp < this.cacheExpiry) {
+        return cached.data;
+      }
+      this.cache.delete(cacheKey);
+    }
+    
+    try {
+      const query = `isbn:${trimmedIsbn}`;
+      // ISBN搜索通常很精确，最多返回几个相关的即可
+      const books = await this.singleSearch(query, 5); 
+      
+      // 缓存结果
+      this.cache.set(cacheKey, {
+        data: books,
+        timestamp: Date.now()
+      });
+
+      return books;
+    } catch (error) {
+      console.error(`通过ISBN (${trimmedIsbn}) 搜索失败:`, error);
+      return [];
+    }
+  }
+
+  /**
    * 多重搜索策略
    * @param {string} query - 原始查询
    * @param {number} maxResults - 最大结果数

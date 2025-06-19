@@ -11,133 +11,142 @@
       />
     </header>
 
-    <p class="tagline">输入书籍名称，带您快速读懂这本书</p>
+    <p class="tagline">输入书籍名称，或通过ISBN精准搜索<br>带您快速读懂这本书</p>
 
     <form @submit.prevent="generateReport" class="input-form" :class="{ 'form-loading': isLoading }">
-      <!-- 替换为新的书籍搜索组件 -->
+      <!-- 书名搜索组件 -->
       <BookSearchInput
-        v-model="bookQuery"
-        :disabled="isLoading"
+        v-model="titleQuery"
+        :disabled="isLoading || isIsbnSearchActive"
         @book-selected="handleBookSelected"
-        @search-change="handleSearchChange"
-        ref="bookSearchInput"
+        @search-change="handleTitleSearchChange"
+        ref="titleSearchInput"
       />
       
+      <div class="divider">或</div>
+
+      <!-- ISBN搜索组件 -->
+      <IsbnSearchInput
+        v-model="isbnQuery"
+        :disabled="isLoading || isTitleSearchActive"
+        @book-selected="handleBookSelected"
+        @search-change="handleIsbnSearchChange"
+        @clear="clearBookSelection"
+        ref="isbnSearchInput"
+      />
+
       <!-- 选中书籍信息显示 -->
       <div v-if="selectedBookInfo && !isLoading" class="selected-book-info">
-        <div class="book-info-header">
-          <span class="info-icon">✓</span>
-          <span class="info-text">已选择书籍</span>
-          <button @click="clearBookSelection" type="button" class="clear-selection-btn">
-            更换
-          </button>
-        </div>
+        <span class="info-icon">✓</span>
         <div class="book-info-details">
           <strong>{{ selectedBookInfo.title }}</strong>
           <span v-if="selectedBookInfo.author">作者：{{ selectedBookInfo.author }}</span>
-          <span v-if="selectedBookInfo.publisher">出版社：{{ selectedBookInfo.publisher }}</span>
+          <span v-if="selectedBookInfo.isbn">ISBN: {{ selectedBookInfo.isbn }}</span>
         </div>
+        <button @click="clearBookSelection" type="button" class="clear-selection-btn">
+          更换
+        </button>
       </div>
       
-      <button type="submit" class="generate-button" :disabled="isLoading || !bookQuery.trim()">
+      <button type="submit" class="generate-button" :disabled="isLoading || !isReadyToSubmit">
         {{ isLoading ? 'BookTok飞速读书中...' : '快速读书' }}
       </button>
+    </form>
 
-      <!-- 预览区域 -->
-      <div v-if="reportContent && isLoading" class="preview-section">
-        <div class="preview-header">
-          <h3>报告预览</h3>
-          <button 
-            v-if="!isAtBottom" 
-            @click="scrollToBottom" 
-            class="scroll-to-bottom-btn"
-            title="回到最新内容"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/>
-            </svg>
-            回到最新
-          </button>
-        </div>
-        <div class="preview-container" ref="previewContainer" @scroll="handleScroll">
-          <div v-html="reportContent.replace(/\n/g, '<br>')"></div>
-        </div>
-      </div>
-
-      <!-- 进度指示器 -->
-      <div v-if="isLoading" class="loading-indicator">
-        <p>{{ progressMessage }}</p>
-        <div class="pixel-loader"></div>
-        <div class="progress-bar-wrapper">
-          <div class="progress-bar">
-            <div class="progress-bar-inner" :style="{ width: progress + '%' }"></div>
-          </div>
-          <div class="progress-text">已完成 {{ Math.round(progress) }}% - 已用时 {{ formatTime(elapsedTime) }}</div>
-        </div>
-      </div>
-
-      <!-- 错误处理和恢复选项 -->
-      <div v-if="error" class="error-section">
-        <div class="error-message">
-          <svg class="error-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+    <!-- 将加载、预览和错误部分移出表单，以避免 pointer-events: none 的影响 -->
+    <div v-if="reportContent && isLoading" class="preview-section">
+      <div class="preview-header">
+        <h3>报告预览</h3>
+        <button 
+          v-if="!isAtBottom" 
+          @click="scrollToBottom" 
+          class="scroll-to-bottom-btn"
+          title="回到最新内容"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/>
           </svg>
-          <span>{{ error }}</span>
+          回到最新
+        </button>
+      </div>
+      <div class="preview-container" ref="previewContainer" @scroll="handleScroll">
+        <div v-html="reportContent.replace(/\n/g, '<br>')"></div>
+      </div>
+    </div>
+
+    <!-- 进度指示器 -->
+    <div v-if="isLoading" class="loading-indicator">
+      <p>{{ progressMessage }}</p>
+      <div class="pixel-loader"></div>
+      <div class="progress-bar-wrapper">
+        <div class="progress-bar">
+          <div class="progress-bar-inner" :style="{ width: progress + '%' }"></div>
+        </div>
+        <div class="progress-text">已完成 {{ Math.round(progress) }}% - 已用时 {{ formatTime(elapsedTime) }}</div>
+      </div>
+    </div>
+
+    <!-- 错误处理和恢复选项 -->
+    <div v-if="error" class="error-section">
+      <div class="error-message">
+        <svg class="error-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <span>{{ error }}</span>
+      </div>
+      
+      <!-- 断点续传恢复选项 -->
+      <div v-if="savedProgress && !isLoading" class="recovery-options">
+        <div class="recovery-info">
+          <p>检测到未完成的报告生成任务</p>
+          <p class="progress-details">
+            书名: {{ savedProgress.bookName }} | 
+            已生成: {{ savedProgress.currentContent.length }}字 | 
+            进度: {{ Math.round(savedProgress.estimatedProgress) }}%
+          </p>
         </div>
         
-        <!-- 断点续传恢复选项 -->
-        <div v-if="savedProgress && !isLoading" class="recovery-options">
-          <div class="recovery-info">
-            <p>检测到未完成的报告生成任务</p>
-            <p class="progress-details">
-              书名: {{ savedProgress.bookName }} | 
-              已生成: {{ savedProgress.currentContent.length }}字 | 
-              进度: {{ Math.round(savedProgress.estimatedProgress) }}%
-            </p>
-          </div>
-          
-          <div class="recovery-actions">
-            <button @click="resumeFromProgress" class="recovery-btn primary">
-              <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-              </svg>
-              继续生成
-            </button>
-            <button @click="viewSavedContent" class="recovery-btn secondary">
-              <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd" />
-              </svg>
-              查看已生成
-            </button>
-            <button @click="clearSavedProgress" class="recovery-btn danger">
-              <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zM12 7a1 1 0 012 0v4a1 1 0 11-2 0V7z" clip-rule="evenodd" />
-              </svg>
-              重新开始
-            </button>
-          </div>
-        </div>
-        
-        <!-- 传统错误恢复选项 -->
-        <div v-else-if="error && !isLoading" class="error-actions">
-          <button v-if="reportContent.length > 500" @click="emergencyRecover" class="recovery-btn">
-            查看已生成内容
+        <div class="recovery-actions">
+          <button @click="resumeFromProgress" class="recovery-btn primary">
+            <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+            </svg>
+            继续生成
           </button>
-          <button @click="resetForm" class="recovery-btn secondary">
+          <button @click="viewSavedContent" class="recovery-btn secondary">
+            <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd" />
+            </svg>
+            查看已生成
+          </button>
+          <button @click="clearSavedProgress" class="recovery-btn danger">
+            <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zM12 7a1 1 0 012 0v4a1 1 0 11-2 0V7z" clip-rule="evenodd" />
+            </svg>
             重新开始
           </button>
         </div>
       </div>
-    </form>
+      
+      <!-- 传统错误恢复选项 -->
+      <div v-else-if="error && !isLoading" class="error-actions">
+        <button v-if="reportContent.length > 500" @click="emergencyRecover" class="recovery-btn">
+          查看已生成内容
+        </button>
+        <button @click="resetForm" class="recovery-btn secondary">
+          重新开始
+        </button>
+      </div>
+    </div>
 
     <!-- 使用提示 -->
     <div class="usage-tips">
       <div class="tips-header">使用提示</div>
       <ul class="tips-list">
-        <li>支持中外文书籍，请输入准确的书名</li>
+        <li>支持中外文书籍名，和ISBN搜索</li>
         <li>生成过程约需3-5分钟，请耐心等待</li>
-        <li>尽量保持页面在前台，直至报告生成完毕</li>
+        <li>请务必保持页面在前台，直至报告生成完毕</li>
         <li>报告将包含作者简介、章节概要等内容</li>
       </ul>
     </div>
@@ -145,23 +154,25 @@
     <footer class="page-footer">
       <p>&copy; {{ currentYear }} BookTok. 保留所有权利。</p>
       <p><router-link to="/privacy-policy" class="footer-link">隐私政策</router-link> | <router-link to="/terms-of-service" class="footer-link">服务条款</router-link></p>
-      <p class="version">版本 1.1.3</p>
+      <p class="version">版本 1.1.4</p>
     </footer>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import apiService from '../services/apiService';
 import BookSearchInput from './BookSearchInput.vue';
+import IsbnSearchInput from './IsbnSearchInput.vue';
 
 const router = useRouter();
 
 // 基本状态
-const bookQuery = ref('');
-const bookQueryInput = ref(null);
-const bookSearchInput = ref(null);
+const titleQuery = ref('');
+const isbnQuery = ref('');
+const titleSearchInput = ref(null);
+const isbnSearchInput = ref(null);
 const selectedBookInfo = ref(null);
 const isLoading = ref(false);
 const error = ref(null);
@@ -188,6 +199,16 @@ const CONFIG = {
 
 // 计算属性
 const currentYear = computed(() => new Date().getFullYear());
+const isTitleSearchActive = computed(() => titleQuery.value.trim() !== '');
+const isIsbnSearchActive = computed(() => isbnQuery.value.trim() !== '');
+const isReadyToSubmit = computed(() => {
+  // 如果有选中的书籍，则允许提交
+  if (selectedBookInfo.value) return true;
+  // 如果没有选中的书籍，但书名搜索框有内容，也允许提交 (允许自定义输入)
+  if (isTitleSearchActive.value && !isIsbnSearchActive.value) return true;
+  // 其他情况不允许提交
+  return false;
+});
 
 const progressMessage = computed(() => {
   const p = progress.value;
@@ -211,24 +232,41 @@ const handleBookSelected = (bookInfo) => {
   console.log('书籍已选择:', bookInfo);
   selectedBookInfo.value = bookInfo;
   
+  // 根据选择来源更新对应输入框的值并禁用另一个
+  if (bookInfo.isbn && isbnQuery.value) {
+    titleQuery.value = ''; 
+  } else {
+    isbnQuery.value = '';
+  }
   // 更新书名（这将确保后台生成时提供更准确的信息）
-  bookQuery.value = bookInfo.title;
+  titleQuery.value = bookInfo.title;
   
   // 清除任何现有错误
   error.value = null;
 };
 
-const handleSearchChange = (query) => {
+const handleTitleSearchChange = (query) => {
   // 当用户手动输入时，清除选中的书籍信息
   if (selectedBookInfo.value && query !== selectedBookInfo.value.title) {
     selectedBookInfo.value = null;
   }
 };
 
+const handleIsbnSearchChange = (query) => {
+  // ISBN输入改变时，也清除选中的书籍信息
+  if (selectedBookInfo.value && query !== selectedBookInfo.value.isbn) {
+    selectedBookInfo.value = null;
+  }
+}
+
 const clearBookSelection = () => {
   selectedBookInfo.value = null;
-  bookQuery.value = '';
-  bookSearchInput.value?.focus();
+  titleQuery.value = '';
+  isbnQuery.value = '';
+  // 让Vue在下一次DOM更新循环后执行，确保组件状态已更新
+  nextTick(() => {
+    titleSearchInput.value?.focus();
+  });
 };
 
 // 进度计算
@@ -331,10 +369,10 @@ const AUTO_SAVE_INTERVAL = 3000; // 3秒自动保存一次
 
 // 保存进度状态
 const saveProgress = () => {
-  if (!currentSessionId.value || !bookQuery.value) return;
+  if (!currentSessionId.value || !titleQuery.value) return;
   
   const progressState = {
-    bookName: bookQuery.value,
+    bookName: titleQuery.value,
     sessionId: currentSessionId.value,
     startTime: startTime.value,
     currentContent: reportContent.value,
@@ -402,7 +440,7 @@ const resumeFromProgress = async () => {
   
   try {
     // 恢复状态
-    bookQuery.value = savedProgress.value.bookName;
+    titleQuery.value = savedProgress.value.bookName;
     reportContent.value = savedProgress.value.currentContent;
     progress.value = savedProgress.value.estimatedProgress;
     currentSessionId.value = savedProgress.value.sessionId;
@@ -507,9 +545,9 @@ const stopAutoSave = () => {
 // 主要生成函数
 const generateReport = async () => {
   console.log('🚀 generateReport 开始执行');
-  console.log('📖 书名:', bookQuery.value);
+  console.log('📖 书名:', titleQuery.value);
   
-  if (!bookQuery.value.trim()) {
+  if (!titleQuery.value.trim()) {
     error.value = '书名不能为空！';
     return;
   }
@@ -552,7 +590,7 @@ const generateReport = async () => {
     if (selectedBookInfo.value) {
       // 如果用户选中了具体书籍，传递完整的书籍信息
       requestParams = {
-        bookQuery: bookQuery.value,
+        bookQuery: titleQuery.value,
         bookInfo: {
           title: selectedBookInfo.value.title,
           author: selectedBookInfo.value.author,
@@ -564,10 +602,10 @@ const generateReport = async () => {
     } else {
       // 如果没有选中具体书籍，使用原来的格式
       requestParams = {
-        bookQuery: bookQuery.value,
+        bookQuery: titleQuery.value,
         sessionId: currentSessionId.value
       };
-      console.log('⚠️ 仅使用原始书名:', bookQuery.value);
+      console.log('⚠️ 仅使用原始书名:', titleQuery.value);
     }
     
     const response = await apiService.generateReport(requestParams);
@@ -678,7 +716,7 @@ const finalizeReport = () => {
     router.push({
       name: 'ReportPage',
       params: { reportId },
-      query: { bookName: bookQuery.value }
+      query: { bookName: titleQuery.value }
     });
   } else {
     cleanup();
@@ -697,7 +735,7 @@ const emergencyRecover = () => {
       name: 'ReportPage',
       params: { reportId },
       query: { 
-        bookName: bookQuery.value,
+        bookName: titleQuery.value,
         isPartial: true
       }
     });
@@ -709,7 +747,7 @@ const emergencyRecover = () => {
 // 重置表单
 const resetForm = () => {
   cleanup();
-  bookQuery.value = '';
+  titleQuery.value = '';
   error.value = null;
   reportContent.value = '';
 };
@@ -732,8 +770,8 @@ const cleanup = () => {
 // 生命周期
 onMounted(() => {
   // 聚焦输入框
-  if (bookQueryInput.value) {
-    bookQueryInput.value.focus();
+  if (titleSearchInput.value) {
+    titleSearchInput.value.focus();
   }
   
   // 检查是否有保存的进度
@@ -784,13 +822,20 @@ const handleVisibilityChange = () => {
   }
 }
 .input-page {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
   display: flex;
   flex-direction: column;
+  align-items: stretch; /* 在移动端拉伸以适应宽度 */
+  padding: 2rem 1rem;
   min-height: 100vh;
   box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* 当屏幕宽度大于768px时，让内容居中 */
+@media (min-width: 768px) {
+  .input-page {
+    align-items: center;
+  }
 }
 
 .page-header {
@@ -835,11 +880,45 @@ const handleVisibilityChange = () => {
 }
 
 .input-form {
+  width: 100%;
+  max-width: 550px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.2rem; /* 增加表单元素间距 */
   margin-bottom: 2rem;
-  transition: opacity 0.3s ease-in-out;
+  transition: opacity 0.3s ease;
+}
+
+.divider {
+  text-align: center;
+  color: #888;
+  font-family: 'Pixelify Sans', sans-serif;
+  font-size: 1.1rem;
+  position: relative;
+  margin: -5px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 30px);
+  height: 1px;
+  background-color: #ddd;
+}
+
+.divider::before {
+  left: 0;
+}
+
+.divider::after {
+  right: 0;
+}
+
+.form-loading {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .form-group label {
@@ -887,54 +966,54 @@ const handleVisibilityChange = () => {
 
 /* 选中书籍信息显示样式 */
 .selected-book-info {
-  margin: 16px 0;
-  padding: 12px 16px;
-  background: #e8f5e8;
-  border: 2px solid #28a745;
+  background-color: #f0fdf4; /* 浅绿色背景 */
+  border: 1px solid #bbf7d0; /* 绿色边框 */
+  border-left-width: 4px;
+  border-left-color: #4ade80; /* 左侧加粗边框 */
   border-radius: 8px;
-  font-size: 14px;
-}
-
-.book-info-header {
+  padding: 0.75rem 1rem;
+  animation: fadeIn 0.3s ease-out;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
 }
 
 .info-icon {
-  color: #28a745;
+  color: #22c55e;
   font-weight: bold;
-  font-size: 16px;
-}
-
-.info-text {
-  color: #155724;
-  font-weight: 600;
-  flex: 1;
+  width: 40px;
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  text-align: left;
 }
 
 .clear-selection-btn {
-  padding: 4px 8px;
-  font-size: 12px;
-  background: transparent;
-  border: 1px solid #28a745;
-  color: #28a745;
-  border-radius: 4px;
+  background: none;
+  border: none;
+  color: #ef4444; /* 红色 */
+  font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  width: 40px;
+  flex-shrink: 0;
+  text-align: right;
 }
 
 .clear-selection-btn:hover {
-  background: #28a745;
-  color: white;
+  background-color: #fee2e2; /* 悬停时淡红色背景 */
+  color: #b91c1c;
 }
 
 .book-info-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  color: #155724;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: #333;
+  text-align: center;
+  margin-top: 0;
+  flex: 1; /* 让中间部分占据所有剩余空间 */
 }
 
 .book-info-details strong {
