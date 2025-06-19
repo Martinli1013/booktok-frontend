@@ -99,3 +99,16 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.form-input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-input:focus {
+  border-color: #ff8c00;
+}
