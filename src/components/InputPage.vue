@@ -824,18 +824,13 @@ const handleVisibilityChange = () => {
 .input-page {
   display: flex;
   flex-direction: column;
-  align-items: stretch; /* 在移动端拉伸以适应宽度 */
+  align-items: center; /* 确保在宽屏上内容水平居中 */
+  max-width: 800px;
+  margin: 0 auto;
   padding: 2rem 1rem;
   min-height: 100vh;
   box-sizing: border-box;
-  overflow-x: hidden;
-}
-
-/* 当屏幕宽度大于768px时，让内容居中 */
-@media (min-width: 768px) {
-  .input-page {
-    align-items: center;
-  }
+  background-color: #f7f7f7;
 }
 
 .page-header {
