@@ -79,54 +79,50 @@ const visualizations = ref([]);
 const route = useRoute();
 
 onMounted(() => {
-  if (window.innerWidth <= 600) {
-    currentFontSize.value = 13; // 移动端初始字号
+  // The primary method to get content is now from history.state, passed via router.push
+  const historyState = window.history.state;
+  let reportContent = historyState.content;
+  let bookName = historyState.bookTitle;
+
+  // Fallback for page reloads or direct navigation
+  if (!reportContent) {
+    console.warn("History state not found, attempting to fall back to route params and localStorage.");
+    const reportId = route.params.reportId; // This might be undefined now, which is okay
+    reportContent = localStorage.getItem(reportId);
+    bookName = route.query.bookName || '未知书籍（来自回退）';
   } else {
-    currentFontSize.value = 16; // PC端初始字号
+    bookName = bookName || '未知书籍';
   }
-  isLoadingReport.value = true;
-  const reportId = route.params.reportId;
-  const bookName = route.query.bookName || '未知书籍';
-  
-  // 设置书名标题
+
   bookTitle.value = bookName;
-
-  console.log('ReportPage loaded for reportId:', reportId, 'Book Name:', bookName);
-
-  const storedReportContent = localStorage.getItem(reportId); // CORRECT: Use reportId from route directly as the key
-
-  if (storedReportContent) {
+  console.log('ReportPage loaded for Book Name:', bookName);
+  
+  if (reportContent) {
     try {
-      reportHtml.value = marked(storedReportContent);
-      //
-      // We will attempt to generate a simple ToC from h2 and h3 tags in the Markdown
-      // This is a basic implementation. For more complex scenarios, a more robust
-      // Markdown parser and ToC generator would be needed.
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = reportHtml.value;
+      tempDiv.innerHTML = marked(reportContent);
+      
       const headings = tempDiv.querySelectorAll('h2, h3');
       const tocItems = [];
       headings.forEach((heading, index) => {
         const id = `section-${index}`;
-        heading.id = id; // Add id to the heading itself for scrolling
+        heading.id = id;
         tocItems.push({
           id: id,
           title: heading.textContent,
-          level: parseInt(heading.tagName.substring(1)) // h2 -> 2, h3 -> 3
+          level: parseInt(heading.tagName.substring(1))
         });
       });
       tableOfContents.value = tocItems;
-      // Update reportHtml with the modified HTML that includes IDs for headings
       reportHtml.value = tempDiv.innerHTML;
 
-
     } catch (error) {
-      console.error('Error parsing Markdown from localStorage:', error);
-      reportHtml.value = '<p>无法解析报告内容，请检查存储的Markdown格式。</p>';
+      console.error('Error parsing report content:', error);
+      reportHtml.value = '<p>无法解析报告内容，格式可能已损坏。</p>';
     }
   } else {
-    reportHtml.value = '<p>未能从localStorage获取到报告内容。请返回重试。</p>';
-    console.error('Report content not found in localStorage for reportId:', reportId);
+    reportHtml.value = '<p>未能获取到报告内容。请返回重试。</p>';
+    console.error('Report content not found in history.state or localStorage.');
   }
   isLoadingReport.value = false;
 });
@@ -264,7 +260,7 @@ const printReport = () => {
   border: 2px solid #333;
   padding: 10px 20px;
   text-align: center;
-  text-decoration: none;
+    text-decoration: none;
   display: inline-block;
   font-size: 16px;
   margin: 4px 2px;

@@ -75,20 +75,36 @@ class GoogleBooksService {
     
     try {
       const query = `isbn:${trimmedIsbn}`;
-      // ISBN搜索通常很精确，最多返回几个相关的即可
       const books = await this.singleSearch(query, 5); 
       
-      // 缓存结果
+      // MODIFICATION: Add a strict filtering step
+      const exactMatches = this._filterByExactISBN(books, trimmedIsbn);
+
+      // Cache the exact matches only
       this.cache.set(cacheKey, {
-        data: books,
+        data: exactMatches,
         timestamp: Date.now()
       });
 
-      return books;
+      return exactMatches;
     } catch (error) {
       console.error(`通过ISBN (${trimmedIsbn}) 搜索失败:`, error);
       return [];
     }
+  }
+
+  /**
+   * MODIFICATION: Private helper to filter results for an exact ISBN match.
+   * @param {Array} books - The list of books returned from the API.
+   * @param {string} isbnToMatch - The exact ISBN string to match.
+   * @returns {Array} A new array containing only exact matches.
+   */
+  _filterByExactISBN(books, isbnToMatch) {
+    return books.filter(book => {
+      // The book.isbn is already a cleaned string from extractISBN.
+      // We just need to check for equality.
+      return book.isbn === isbnToMatch;
+    });
   }
 
   /**
