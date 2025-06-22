@@ -12,10 +12,9 @@ const routes = [
     component: InputPage,
   },
   {
-    path: '/report/:reportId', // 假设报告通过ID访问
-    name: 'ReportPage',
+    path: '/report',
+    name: 'Report',
     component: ReportPage,
-    props: true, // 将路由参数作为props传递给组件
   },
   {
     path: '/privacy-policy',
